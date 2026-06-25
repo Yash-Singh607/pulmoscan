@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PulmoScan — AI Chest X-Ray Pneumonia Analyzer</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@500;600&display=swap"
+    rel="stylesheet"
+  />
+  <link rel="stylesheet" href="/static/styles.css" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🫁</text></svg>" />
+</head>
+<body data-mode="single">
+  <div class="aurora"></div>
+  <div class="grid-overlay"></div>
+
+  <header class="topbar">
+    <div class="brand">
+      <div class="brand-mark" aria-hidden="true">
+        <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 3v8" />
+          <path d="M9 6c0 4-3 5-4 8-1 3 0 6 2 6 1.5 0 2-1 2-3v-7" />
+          <path d="M15 6c0 4 3 5 4 8 1 3 0 6-2 6-1.5 0-2-1-2-3v-7" />
+        </svg>
+      </div>
+      <div class="brand-text">
+        <span class="brand-name">PulmoScan</span>
+        <span class="brand-sub">AI Chest X-Ray Analysis</span>
+      </div>
+    </div>
+
+    <nav class="nav" id="nav">
+      <a href="#analyzer">Analyzer</a>
+      <a href="#how">How it works</a>
+      <a href="#features">Features</a>
+      <a href="#performance">Performance</a>
+      <a href="#history">History</a>
+      <a href="#faq">FAQ</a>
+    </nav>
+
+    <div class="topbar-right">
+      <button class="theme-toggle" id="themeToggle" aria-label="Toggle light/dark theme" title="Toggle theme">🌙</button>
+      <div class="status-pill" id="statusPill" data-state="loading">
+        <span class="dot"></span>
+        <span id="statusText">Checking model…</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- HERO -->
+  <section class="hero">
+    <div class="hero-badge">Transfer Learning · ResNet-50 · Grad-CAM</div>
+    <h1 class="hero-title">Detect pneumonia from chest X-rays<br /><span>with explainable AI</span></h1>
+    <p class="hero-sub">
+      Upload a chest X-ray and get an instant prediction, calibrated confidence,
+      and a Grad-CAM heatmap showing exactly where the model looked.
+    </p>
+    <div class="hero-cta">
+      <a href="#analyzer" class="btn primary hero-btn">Try the Analyzer</a>
+      <a href="/docs" class="btn ghost hero-btn" target="_blank" rel="noopener">API Docs</a>
+    </div>
+    <div class="hero-stats">
+      <div><b id="heroAcc">~94%</b><span>Typical accuracy</span></div>
+      <div><b>&lt;1s</b><span>Inference time</span></div>
+      <div><b>2</b><span>Classes</span></div>
+      <div><b>5,856</b><span>Training images</span></div>
+    </div>
+  </section>
+
+  <!-- ANALYZER -->
+  <main class="layout" id="analyzer">
+    <section class="panel upload-panel">
+      <div class="panel-head">
+        <h2 class="panel-title">Upload X-Ray</h2>
+        <div class="mode-toggle" role="tablist" aria-label="Analysis mode">
+          <button class="mode-btn active" data-mode="single" role="tab">Single</button>
+          <button class="mode-btn" data-mode="batch" role="tab">Batch</button>
+        </div>
+      </div>
+      <p class="panel-hint" id="uploadHint">Drag a chest X-ray here, or click to browse.</p>
+
+      <div class="dropzone" id="dropzone" tabindex="0" role="button" aria-label="Upload X-ray image">
+        <input type="file" id="fileInput" accept="image/*,.dcm,application/dicom" hidden />
+        <div class="dropzone-empty" id="dropzoneEmpty">
+          <div class="upload-orb">
+            <svg viewBox="0 0 24 24" width="34" height="34" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+              <path d="M7 9l5-5 5 5" />
+              <path d="M12 4v12" />
+            </svg>
+          </div>
+          <p><strong>Click to upload</strong> or drag &amp; drop</p>
+          <span id="dropHintSub">PNG, JPG or DICOM (.dcm)</span>
+        </div>
+        <div class="preview-wrap" id="previewWrap" hidden>
+          <img id="previewImg" class="preview-img" alt="X-ray preview" />
+          <div class="scanline" id="scanline"></div>
+        </div>
+        <div class="batch-strip" id="batchStrip" hidden></div>
+      </div>
+
+      <div class="actions">
+        <button class="btn ghost" id="clearBtn" disabled>Clear</button>
+        <button class="btn primary" id="analyzeBtn" disabled>
+          <span class="btn-label">Analyze</span>
+          <span class="spinner" hidden></span>
+        </button>
+      </div>
+
+      <p class="filename" id="fileName"></p>
+    </section>
+
+    <section class="panel result-panel">
+      <div class="panel-head">
+        <h2 class="panel-title">Results</h2>
+        <div class="result-tools" id="resultTools" hidden>
+          <button class="tool-btn" id="copyBtn" title="Copy results as JSON">Copy</button>
+          <button class="tool-btn" id="downloadBtn" title="Download JSON report">JSON</button>
+          <button class="tool-btn" id="pdfBtn" title="Download PDF report">PDF</button>
+        </div>
+      </div>
+
+      <div class="placeholder" id="placeholder">
+        <div class="placeholder-orb">
+          <svg viewBox="0 0 24 24" width="34" height="34" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="11" cy="11" r="7" />
+            <path d="m21 21-4.3-4.3" />
+          </svg>
+        </div>
+        <p>Upload an X-ray and run analysis to see the prediction, confidence, and a Grad-CAM heatmap.</p>
+      </div>
+
+      <div class="results" id="results" hidden>
+        <div class="ood-banner" id="oodBanner" hidden></div>
+        <div class="verdict" id="verdict">
+          <div class="verdict-left">
+            <div class="verdict-icon" id="verdictIcon"></div>
+            <div class="verdict-main">
+              <span class="verdict-tag">Prediction</span>
+              <span class="verdict-label" id="verdictLabel">—</span>
+              <span class="advisory" id="advisory" hidden></span>
+            </div>
+          </div>
+          <div class="gauge" id="gauge">
+            <svg viewBox="0 0 120 120" width="92" height="92">
+              <circle class="gauge-track" cx="60" cy="60" r="52" />
+              <circle class="gauge-fill" id="gaugeFill" cx="60" cy="60" r="52" transform="rotate(-90 60 60)" />
+            </svg>
+            <div class="gauge-text">
+              <span id="confidenceValue">0%</span>
+              <small>confidence</small>
+            </div>
+          </div>
+        </div>
+
+        <div class="control-card">
+          <div class="control-head">
+            <label for="threshold">Decision threshold (PNEUMONIA)</label>
+            <span class="control-val" id="thresholdVal">50%</span>
+          </div>
+          <input type="range" id="threshold" min="5" max="95" value="50" />
+          <p class="control-note">Probability cutoff for a positive call. Lower = more sensitive.</p>
+        </div>
+
+        <div class="probs" id="probs"></div>
+
+        <div class="gradcam">
+          <div class="gradcam-head">
+            <h3>Grad-CAM Explainability</h3>
+            <span>Blend the heatmap over the X-ray, or click a thumbnail to enlarge.</span>
+          </div>
+          <div class="cam-stage">
+            <img id="camBase" alt="X-ray" />
+            <img id="camHeat" alt="Heatmap" />
+          </div>
+          <div class="control-head tight">
+            <label for="opacity">Heatmap opacity</label>
+            <span class="control-val" id="opacityVal">45%</span>
+          </div>
+          <input type="range" id="opacity" min="0" max="100" value="45" />
+          <div class="gradcam-grid">
+            <figure data-zoom><img id="imgOriginal" alt="Original X-ray" /><figcaption>Original</figcaption></figure>
+            <figure data-zoom><img id="imgHeatmap" alt="Grad-CAM heatmap" /><figcaption>Heatmap</figcaption></figure>
+            <figure data-zoom><img id="imgOverlay" alt="Heatmap overlay" /><figcaption>Overlay</figcaption></figure>
+          </div>
+        </div>
+
+        <div class="result-meta" id="resultMeta"></div>
+
+        <div class="feedback" id="feedback">
+          <span class="feedback-q">Was this prediction correct?</span>
+          <div class="feedback-actions">
+            <button class="fb-btn yes" id="fbYes" title="Correct">👍 Correct</button>
+            <button class="fb-btn no" id="fbNo" title="Incorrect">👎 Incorrect</button>
+          </div>
+          <span class="feedback-thanks" id="feedbackThanks" hidden>Thanks — feedback recorded.</span>
+        </div>
+      </div>
+
+      <div class="batch-results" id="batchResults" hidden>
+        <div class="batch-summary" id="batchSummary"></div>
+        <div class="batch-progress" id="batchProgress" hidden>
+          <div class="batch-progress-bar"><div id="batchProgressFill"></div></div>
+          <span id="batchProgressText">0 / 0</span>
+        </div>
+        <div class="batch-table-wrap">
+          <table class="batch-table">
+            <thead><tr><th>#</th><th>File</th><th>Prediction</th><th>Confidence</th></tr></thead>
+            <tbody id="batchTbody"></tbody>
+          </table>
+        </div>
+        <div class="batch-actions">
+          <button class="btn ghost" id="exportCsvBtn">Export CSV</button>
+        </div>
+      </div>
+
+      <div class="error-box" id="errorBox" hidden></div>
+    </section>
+  </main>
+
+  <!-- HOW IT WORKS -->
+  <section class="section" id="how">
+    <div class="section-head">
+      <span class="section-kicker">Workflow</span>
+      <h2 class="section-title">How it works</h2>
+      <p class="section-lead">Three steps from raw X-ray to an explainable prediction.</p>
+    </div>
+    <div class="steps">
+      <article class="step-card">
+        <div class="step-num">01</div>
+        <h3>Upload</h3>
+        <p>Drag in a chest X-ray (or a whole batch). Images are resized and normalized to match the model's input.</p>
+      </article>
+      <article class="step-card">
+        <div class="step-num">02</div>
+        <h3>AI inference</h3>
+        <p>A fine-tuned ResNet-50 runs a forward pass in milliseconds and outputs calibrated class probabilities.</p>
+      </article>
+      <article class="step-card">
+        <div class="step-num">03</div>
+        <h3>Explainable result</h3>
+        <p>See the verdict, confidence gauge, and a Grad-CAM heatmap highlighting the regions that drove the decision.</p>
+      </article>
+    </div>
+  </section>
+
+  <!-- FEATURES -->
+  <section class="section" id="features">
+    <div class="section-head">
+      <span class="section-kicker">Capabilities</span>
+      <h2 class="section-title">Built for real workflows</h2>
+      <p class="section-lead">Everything you need to analyze, interpret, and export results.</p>
+    </div>
+    <div class="feature-grid">
+      <article class="feature-card">
+        <div class="feature-ic">🧠</div><h3>Transfer Learning</h3>
+        <p>ResNet-50 pretrained on ImageNet, fine-tuned in two phases for chest radiographs.</p>
+      </article>
+      <article class="feature-card">
+        <div class="feature-ic">🔥</div><h3>Grad-CAM Heatmaps</h3>
+        <p>Visual explanations show which lung regions influenced each prediction.</p>
+      </article>
+      <article class="feature-card">
+        <div class="feature-ic">📦</div><h3>Batch Processing</h3>
+        <p>Analyze many X-rays at once with a sortable table and one-click CSV export.</p>
+      </article>
+      <article class="feature-card">
+        <div class="feature-ic">🎚️</div><h3>Adjustable Threshold</h3>
+        <p>Tune the decision cutoff live to trade off sensitivity vs specificity.</p>
+      </article>
+      <article class="feature-card">
+        <div class="feature-ic">📊</div><h3>Confidence Scoring</h3>
+        <p>Per-class probabilities with low-confidence advisories for borderline cases.</p>
+      </article>
+      <article class="feature-card">
+        <div class="feature-ic">📤</div><h3>Exportable Reports</h3>
+        <p>Download structured JSON reports or copy results straight to your clipboard.</p>
+      </article>
+    </div>
+  </section>
+
+  <!-- PERFORMANCE -->
+  <section class="section" id="performance">
+    <div class="section-head">
+      <span class="section-kicker">Evaluation</span>
+      <h2 class="section-title">Model performance</h2>
+      <p class="section-lead" id="perfLead">Live metrics from your most recent evaluation run.</p>
+    </div>
+    <div class="metric-grid" id="metricGrid">
+      <div class="metric-card"><div class="metric-val" data-k="accuracy">—</div><div class="metric-lbl">Accuracy</div></div>
+      <div class="metric-card"><div class="metric-val" data-k="f1">—</div><div class="metric-lbl">F1 Score</div></div>
+      <div class="metric-card"><div class="metric-val" data-k="precision">—</div><div class="metric-lbl">Precision</div></div>
+      <div class="metric-card"><div class="metric-val" data-k="recall">—</div><div class="metric-lbl">Recall</div></div>
+      <div class="metric-card"><div class="metric-val" data-k="auc">—</div><div class="metric-lbl">ROC-AUC</div></div>
+    </div>
+    <div class="tech-row">
+      <span class="tech-label">Built with</span>
+      <span class="tech-badge">PyTorch</span>
+      <span class="tech-badge">TorchVision</span>
+      <span class="tech-badge">FastAPI</span>
+      <span class="tech-badge">OpenCV</span>
+      <span class="tech-badge">scikit-learn</span>
+    </div>
+  </section>
+
+  <!-- HISTORY -->
+  <section class="section" id="history">
+    <div class="section-head">
+      <span class="section-kicker">Audit</span>
+      <h2 class="section-title">Recent analyses</h2>
+      <p class="section-lead">A running audit log of predictions made on this server.</p>
+    </div>
+    <div class="history-wrap">
+      <div class="history-toolbar">
+        <button class="tool-btn" id="refreshHistory">Refresh</button>
+      </div>
+      <div class="batch-table-wrap">
+        <table class="batch-table">
+          <thead><tr><th>Time</th><th>File</th><th>Prediction</th><th>Confidence</th><th>Flags</th></tr></thead>
+          <tbody id="historyTbody">
+            <tr><td colspan="5" class="history-empty">No analyses yet.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- FAQ -->
+  <section class="section" id="faq">
+    <div class="section-head">
+      <span class="section-kicker">Questions</span>
+      <h2 class="section-title">FAQ</h2>
+    </div>
+    <div class="faq" id="faqList">
+      <details class="faq-item">
+        <summary>Is PulmoScan a medical device?</summary>
+        <p>No. It is a research and education demo only and must never be used for clinical diagnosis or treatment decisions. Always consult a qualified clinician.</p>
+      </details>
+      <details class="faq-item">
+        <summary>What data was the model trained on?</summary>
+        <p>The public Kaggle “Chest X-Ray Images (Pneumonia)” dataset by Paul Mooney — pediatric frontal-view radiographs labeled NORMAL or PNEUMONIA.</p>
+      </details>
+      <details class="faq-item">
+        <summary>How accurate is it?</summary>
+        <p>A fully trained ResNet-50 typically reaches ~93–95% test accuracy and ~0.97+ ROC-AUC. Your exact numbers appear in the Performance section after training.</p>
+      </details>
+      <details class="faq-item">
+        <summary>What is Grad-CAM?</summary>
+        <p>Gradient-weighted Class Activation Mapping — a technique that produces a heatmap of the image regions most responsible for the model's prediction, adding interpretability.</p>
+      </details>
+      <details class="faq-item">
+        <summary>Can I use my own model?</summary>
+        <p>Yes. Point the server at any compatible checkpoint via the <code>CXR_CHECKPOINT_PATH</code> environment variable.</p>
+      </details>
+    </div>
+  </section>
+
+  <footer class="site-footer">
+    <div class="footer-brand">
+      <div class="brand-mark small" aria-hidden="true">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v8"/><path d="M9 6c0 4-3 5-4 8-1 3 0 6 2 6 1.5 0 2-1 2-3v-7"/><path d="M15 6c0 4 3 5 4 8 1 3 0 6-2 6-1.5 0-2-1-2-3v-7"/></svg>
+      </div>
+      <span>PulmoScan</span>
+    </div>
+    <p class="disclaimer">
+      <strong>⚠ Research &amp; education only.</strong>
+      Not a medical device — do not use for clinical diagnosis. Always consult a qualified healthcare professional.
+    </p>
+    <div class="footer-links">
+      <a href="/docs" target="_blank" rel="noopener">API Docs</a>
+      <a href="#analyzer">Analyzer</a>
+      <a href="#features">Features</a>
+    </div>
+  </footer>
+
+  <div class="lightbox" id="lightbox" hidden>
+    <button class="lightbox-close" id="lightboxClose" aria-label="Close">&times;</button>
+    <img id="lightboxImg" alt="Enlarged view" />
+  </div>
+  <div class="toast" id="toast" hidden></div>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>

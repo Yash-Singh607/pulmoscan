@@ -1,0 +1,17 @@
+__pycache__/
+*.py[cod]
+*.egg-info/
+.git/
+.gitignore
+.venv/
+venv/
+.env
+data/
+outputs/
+checkpoints/
+tests/
+.pytest_cache/
+.ruff_cache/
+*.ipynb
+.DS_Store
+Thumbs.db

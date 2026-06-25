@@ -1,0 +1,84 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "chestxray"
+version = "0.1.0"
+description = "Chest X-Ray pneumonia classifier (ResNet-50) with training, Grad-CAM, and a REST API."
+readme = "README.md"
+requires-python = ">=3.9"
+license = { text = "MIT" }
+authors = [{ name = "Your Name" }]
+keywords = ["deep-learning", "medical-imaging", "pytorch", "resnet", "grad-cam"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+dependencies = [
+    "torch>=2.0.0",
+    "torchvision>=0.15.0",
+    "opencv-python>=4.8.0",
+    "Pillow>=10.0.0",
+    "numpy>=1.24.0",
+    "matplotlib>=3.7.0",
+    "seaborn>=0.12.0",
+    "scikit-learn>=1.3.0",
+    "tqdm>=4.65.0",
+]
+
+[project.optional-dependencies]
+serve = [
+    "fastapi>=0.110.0",
+    "uvicorn[standard]>=0.27.0",
+    "python-multipart>=0.0.9",
+    "pydicom>=2.4.0",
+]
+dicom = ["pydicom>=2.4.0"]
+data = ["kaggle>=1.6.0"]
+dev = [
+    "pytest>=8.0.0",
+    "pytest-cov>=4.1.0",
+    "ruff>=0.4.0",
+    "black>=24.0.0",
+    "httpx>=0.27.0",
+    "fastapi>=0.110.0",
+    "uvicorn[standard]>=0.27.0",
+    "python-multipart>=0.0.9",
+    "pydicom>=2.4.0",
+    "pre-commit>=3.6.0",
+]
+
+[project.scripts]
+chestxray = "chestxray.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/your-username/chest-xray-classifier"
+
+[tool.setuptools]
+packages = ["chestxray"]
+
+[tool.setuptools.package-data]
+chestxray = ["web/*.html", "web/*.css", "web/*.js"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+
+[tool.ruff]
+line-length = 100
+target-version = "py39"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "W", "UP", "B"]
+ignore = ["E402"]  # module-level imports after matplotlib.use("Agg")
+
+[tool.black]
+line-length = 100
+target-version = ["py39"]
+
+[tool.coverage.run]
+source = ["chestxray"]
+omit = ["chestxray/dataset_setup.py"]
