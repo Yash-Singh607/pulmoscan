@@ -31,6 +31,15 @@ const els = {
   feedbackThanks: $("feedbackThanks"),
   refreshHistory: $("refreshHistory"),
   historyTbody: $("historyTbody"),
+  refreshReview: $("refreshReview"),
+  reviewTbody: $("reviewTbody"),
+  patientRef: $("patientRef"),
+  studyDate: $("studyDate"),
+  caseNotes: $("caseNotes"),
+  createCaseBtn: $("createCaseBtn"),
+  caseIdChip: $("caseIdChip"),
+  triageBanner: $("triageBanner"),
+  qualityBanner: $("qualityBanner"),
   verdict: $("verdict"),
   verdictLabel: $("verdictLabel"),
   verdictIcon: $("verdictIcon"),
@@ -61,6 +70,22 @@ const els = {
   lightboxClose: $("lightboxClose"),
   toast: $("toast"),
   themeToggle: $("themeToggle"),
+  userChip: $("userChip"),
+  userDropdown: $("userDropdown"),
+  userAvatar: $("userAvatar"),
+  userName: $("userName"),
+  userRole: $("userRole"),
+  openLoginBtn: $("openLoginBtn"),
+  logoutBtn: $("logoutBtn"),
+  loginModal: $("loginModal"),
+  loginModalClose: $("loginModalClose"),
+  loginForm: $("loginForm"),
+  loginUser: $("loginUser"),
+  loginPass: $("loginPass"),
+  loginError: $("loginError"),
+  loginSub: $("loginSub"),
+  datasetNote: $("datasetNote"),
+  heroModels: $("heroModels"),
 };
 
 const GAUGE_C = 327;
@@ -78,13 +103,201 @@ let currentProbs = null; // {NORMAL, PNEUMONIA}
 let currentUncertainty = null;
 let lastSingle = null; // for copy/report
 let batchRows = [];
+let activeCaseId = null;
+let authEnabled = false;
+let liveMetrics = null;
+
+const DATASET_BENCHMARKS = {
+  kaggle: { live: true, note: "Metrics from your trained model on the Kaggle Chest X-Ray Pneumonia dataset." },
+  nih: {
+    live: false,
+    note: "Reference benchmarks from published ResNet studies on NIH ChestX-ray14 (multi-label). Not trained by this deployment.",
+    metrics: { accuracy: 0.71, f1: 0.68, precision: 0.70, recall: 0.69, auc: 0.78 },
+  },
+  rsna: {
+    live: false,
+    note: "Reference benchmarks for RSNA Pneumonia Detection (literature). Not trained by this deployment.",
+    metrics: { accuracy: 0.88, f1: 0.86, precision: 0.87, recall: 0.88, auc: 0.92 },
+  },
+  covid: {
+    live: false,
+    note: "Reference benchmarks for COVID-19 CXR classification (literature). Not trained by this deployment.",
+    metrics: { accuracy: 0.91, f1: 0.90, precision: 0.89, recall: 0.92, auc: 0.94 },
+  },
+};
 
 /* fetch wrapper that attaches an optional API key (set via localStorage). */
 function apiFetch(url, options = {}) {
   const key = localStorage.getItem("pulmo-api-key");
+  const token = localStorage.getItem("pulmo-jwt");
   const headers = new Headers(options.headers || {});
   if (key) headers.set("X-API-Key", key);
+  if (token) headers.set("Authorization", `Bearer ${token}`);
   return fetch(url, { ...options, headers });
+}
+
+/* ---------- Auth / user profile ---------- */
+function initials(name) {
+  const parts = String(name || "G").trim().split(/\s+/);
+  if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase();
+  return (parts[0].slice(0, 2) || "G").toUpperCase();
+}
+
+function roleLabel(role) {
+  if (role === "clinician") return "Clinician · MD";
+  if (role === "admin") return "Administrator";
+  if (role === "viewer") return "Viewer";
+  return "Demo mode";
+}
+
+function setUserDisplay(name, role) {
+  if (!els.userName) return;
+  els.userName.textContent = name;
+  els.userRole.textContent = roleLabel(role);
+  if (els.userAvatar) els.userAvatar.textContent = initials(name);
+  const loggedIn = role !== "guest";
+  if (els.logoutBtn) els.logoutBtn.hidden = !loggedIn;
+  if (els.openLoginBtn) els.openLoginBtn.hidden = loggedIn;
+}
+
+function loadStoredUser() {
+  const raw = localStorage.getItem("pulmo-user");
+  if (raw) {
+    try {
+      const u = JSON.parse(raw);
+      setUserDisplay(u.name || "Guest", u.role || "guest");
+      return;
+    } catch {
+      /* fall through */
+    }
+  }
+  setUserDisplay("Guest", "guest");
+}
+
+function openLoginModal() {
+  if (els.loginModal) els.loginModal.hidden = false;
+  if (els.loginError) els.loginError.hidden = true;
+  if (els.loginSub) {
+    els.loginSub.textContent = authEnabled
+      ? "Sign in to record analyses under your identity."
+      : "Auth is disabled on this server — sign-in stores a demo profile locally.";
+  }
+}
+
+function closeLoginModal() {
+  if (els.loginModal) els.loginModal.hidden = true;
+}
+
+async function handleLogin(e) {
+  e.preventDefault();
+  const username = els.loginUser?.value?.trim();
+  const password = els.loginPass?.value || "";
+  if (!username) return;
+
+  try {
+    const res = await fetch("/auth/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ username, password }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || "Login failed");
+
+    const displayName = username.charAt(0).toUpperCase() + username.slice(1);
+    const role = data.role || "clinician";
+    if (data.token) localStorage.setItem("pulmo-jwt", data.token);
+    localStorage.setItem("pulmo-user", JSON.stringify({ name: displayName, role }));
+    setUserDisplay(displayName, role);
+    closeLoginModal();
+    showToast(`Signed in as ${displayName}`);
+  } catch (err) {
+    if (els.loginError) {
+      els.loginError.hidden = false;
+      els.loginError.textContent = err.message || "Invalid credentials";
+    }
+  }
+}
+
+function logoutUser() {
+  localStorage.removeItem("pulmo-jwt");
+  localStorage.removeItem("pulmo-user");
+  setUserDisplay("Guest", "guest");
+  if (els.logoutBtn) els.logoutBtn.hidden = true;
+  if (els.openLoginBtn) els.openLoginBtn.hidden = false;
+  showToast("Signed out");
+  if (els.userDropdown) els.userDropdown.hidden = true;
+}
+
+function initUserMenu() {
+  loadStoredUser();
+  els.userChip?.addEventListener("click", (e) => {
+    e.stopPropagation();
+    if (!els.userDropdown) return;
+    const open = els.userDropdown.hidden;
+    els.userDropdown.hidden = !open;
+    els.userChip?.setAttribute("aria-expanded", String(open));
+  });
+  document.addEventListener("click", () => {
+    if (els.userDropdown) els.userDropdown.hidden = true;
+  });
+  els.openLoginBtn?.addEventListener("click", () => {
+    els.userDropdown.hidden = true;
+    openLoginModal();
+  });
+  els.logoutBtn?.addEventListener("click", logoutUser);
+  els.loginModalClose?.addEventListener("click", closeLoginModal);
+  els.loginModal?.addEventListener("click", (e) => {
+    if (e.target === els.loginModal) closeLoginModal();
+  });
+  els.loginForm?.addEventListener("submit", handleLogin);
+}
+
+/* ---------- Dataset benchmark tabs ---------- */
+function applyDatasetTab(key) {
+  document.querySelectorAll(".dataset-tab").forEach((tab) => {
+    tab.classList.toggle("active", tab.dataset.dataset === key);
+  });
+  const cfg = DATASET_BENCHMARKS[key] || DATASET_BENCHMARKS.kaggle;
+  if (els.datasetNote) els.datasetNote.textContent = cfg.note;
+
+  if (key === "kaggle" && liveMetrics) {
+    setMetric("accuracy", liveMetrics.accuracy);
+    setMetric("f1", liveMetrics.f1);
+    setMetric("precision", liveMetrics.precision);
+    setMetric("recall", liveMetrics.recall);
+    setMetric("auc", liveMetrics.auc, true);
+    return;
+  }
+  if (key === "kaggle") {
+    showTargetMetrics();
+    return;
+  }
+  const m = cfg.metrics || {};
+  setMetric("accuracy", m.accuracy);
+  setMetric("f1", m.f1);
+  setMetric("precision", m.precision);
+  setMetric("recall", m.recall);
+  setMetric("auc", m.auc, true);
+}
+
+function initDatasetTabs() {
+  document.querySelectorAll(".dataset-tab").forEach((tab) => {
+    tab.addEventListener("click", () => applyDatasetTab(tab.dataset.dataset));
+  });
+  applyDatasetTab("kaggle");
+}
+
+async function loadModelCount() {
+  try {
+    const res = await fetch("/models");
+    if (res.ok) {
+      const data = await res.json();
+      const n = (data.models || []).length || 1;
+      if (els.heroModels) els.heroModels.textContent = String(n);
+    }
+  } catch {
+    /* ignore */
+  }
 }
 
 /* ---------- Theme ---------- */
@@ -133,10 +346,12 @@ function initReveal() {
 /* ---------- Model status ---------- */
 async function checkStatus() {
   try {
-    const res = await fetch("/metadata");
+    const res = await apiFetch("/metadata");
     if (res.ok) {
       modelMeta = await res.json();
+      authEnabled = !!modelMeta.auth_enabled;
       setStatus("ready", `Model ready · ${modelMeta.device.toUpperCase()}`);
+      loadStoredUser();
     } else {
       modelMeta = null;
       setStatus("offline", "No model loaded");
@@ -156,17 +371,19 @@ async function loadMetrics() {
   try {
     const res = await fetch("/metrics");
     if (res.ok) {
-      const m = await res.json();
-      setMetric("accuracy", m.accuracy);
-      setMetric("f1", m.f1);
-      setMetric("precision", m.precision);
-      setMetric("recall", m.recall);
-      setMetric("auc", m.auc, true);
+      liveMetrics = await res.json();
+      setMetric("accuracy", liveMetrics.accuracy);
+      setMetric("f1", liveMetrics.f1);
+      setMetric("precision", liveMetrics.precision);
+      setMetric("recall", liveMetrics.recall);
+      setMetric("auc", liveMetrics.auc, true);
       const lead = $("perfLead");
       if (lead) lead.textContent = "Live metrics from your most recent evaluation run.";
-      if (typeof m.accuracy === "number") {
-        $("heroAcc").textContent = `${(m.accuracy * 100).toFixed(1)}%`;
+      if (typeof liveMetrics.accuracy === "number") {
+        $("heroAcc").textContent = `${(liveMetrics.accuracy * 100).toFixed(1)}%`;
       }
+      const active = document.querySelector(".dataset-tab.active");
+      if (active?.dataset.dataset === "kaggle") applyDatasetTab("kaggle");
     } else {
       showTargetMetrics();
     }
@@ -271,6 +488,8 @@ function clearAll() {
   els.batchResults.hidden = true;
   els.resultTools.hidden = true;
   els.oodBanner.hidden = true;
+  els.qualityBanner.hidden = true;
+  els.triageBanner.hidden = true;
   els.placeholder.hidden = false;
   hideError();
 }
@@ -288,6 +507,7 @@ async function analyzeSingle() {
   hideError();
   const form = new FormData();
   form.append("file", singleFile);
+  if (activeCaseId) form.append("case_id", activeCaseId);
   const t0 = performance.now();
   try {
     const res = await apiFetch("/predict/analyze", { method: "POST", body: form });
@@ -295,6 +515,7 @@ async function analyzeSingle() {
     if (!res.ok) return showError(data.detail || `Request failed (${res.status}).`);
     renderSingle(data, performance.now() - t0);
     loadHistory();
+    loadReviewQueue();
   } catch {
     showError("Could not reach the server. Is it still running?");
   } finally {
@@ -318,6 +539,24 @@ function renderSingle(data, elapsedMs) {
     els.oodBanner.innerHTML = `⚠ ${data.input_check.reason || "Input may not be a chest X-ray."}`;
   } else {
     els.oodBanner.hidden = true;
+  }
+
+  // Image quality
+  if (data.quality && data.quality.warnings && data.quality.warnings.length) {
+    els.qualityBanner.hidden = false;
+    els.qualityBanner.innerHTML = `📷 ${data.quality.warnings.join(" ")} (score ${(data.quality.score * 100).toFixed(0)}%)`;
+  } else {
+    els.qualityBanner.hidden = true;
+  }
+
+  // Clinical triage
+  if (data.triage && data.triage !== "routine") {
+    els.triageBanner.hidden = false;
+    const label = data.triage === "reject" ? "REJECT — do not trust result" : "REVIEW REQUIRED";
+    els.triageBanner.className = `triage-banner triage-${data.triage}`;
+    els.triageBanner.textContent = `${label}${data.triage_reasons?.length ? ": " + data.triage_reasons.join("; ") : ""}`;
+  } else {
+    els.triageBanner.hidden = true;
   }
 
   // reset feedback widget
@@ -361,6 +600,12 @@ function renderSingle(data, elapsedMs) {
     <span class="chip"><b>model</b> ResNet-50</span>`;
   if (currentUncertainty) {
     metaHtml += `<span class="chip"><b>entropy</b> ${currentUncertainty.entropy.toFixed(3)}</span>`;
+  }
+  if (data.triage) {
+    metaHtml += `<span class="chip"><b>triage</b> ${data.triage.toUpperCase()}</span>`;
+  }
+  if (data.case_id) {
+    metaHtml += `<span class="chip"><b>case</b> ${data.case_id}</span>`;
   }
   els.resultMeta.innerHTML = metaHtml;
 
@@ -590,6 +835,7 @@ function renderHistory(items) {
       let flags = "";
       if (it.is_xray_like === false) flags += `<span class="flag-dot warn" title="OOD input"></span>`;
       if (it.abstain) flags += `<span class="flag-dot abstain" title="Abstained"></span>`;
+      if (it.triage && it.triage !== "routine") flags += `<span class="flag-dot triage" title="${it.triage}"></span>`;
       return `<tr>
         <td><span class="mini-val">${time}</span></td>
         <td><div class="file-cell"><span>${it.file || "—"}</span></div></td>
@@ -599,6 +845,85 @@ function renderHistory(items) {
       </tr>`;
     })
     .join("");
+}
+
+/* ---------- Cases ---------- */
+async function createCase() {
+  const patient_ref = els.patientRef?.value?.trim() || "anonymous";
+  try {
+    const res = await apiFetch("/cases", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        patient_ref,
+        study_date: els.studyDate?.value || null,
+        notes: els.caseNotes?.value || "",
+      }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || "Failed");
+    activeCaseId = data.case_id;
+    els.caseIdChip.hidden = false;
+    els.caseIdChip.textContent = `Case: ${activeCaseId}`;
+    showToast("Case created");
+  } catch (e) {
+    showToast("Could not create case");
+  }
+}
+
+/* ---------- Review queue ---------- */
+async function loadReviewQueue() {
+  try {
+    const res = await apiFetch("/review/queue?limit=25");
+    if (!res.ok) return;
+    const data = await res.json();
+    renderReviewQueue(data.items || []);
+  } catch {
+    /* ignore */
+  }
+}
+
+function renderReviewQueue(items) {
+  if (!els.reviewTbody) return;
+  if (!items.length) {
+    els.reviewTbody.innerHTML = `<tr><td colspan="6" class="history-empty">No pending reviews.</td></tr>`;
+    return;
+  }
+  els.reviewTbody.innerHTML = items
+    .map((it) => {
+      const time = it.created_at ? new Date(it.created_at).toLocaleString() : "—";
+      const cls = it.label === "PNEUMONIA" ? "pneumonia" : "normal";
+      return `<tr>
+        <td><span class="mini-val">${time}</span></td>
+        <td><span class="mini-val">${it.study_id || "—"}</span></td>
+        <td><span class="badge ${cls}">${it.label || "—"}</span></td>
+        <td><span class="badge triage-${it.triage || "review"}">${(it.triage || "review").toUpperCase()}</span></td>
+        <td><span class="mini-val">${it.reason || "—"}</span></td>
+        <td>
+          <button class="tool-btn resolve-btn" data-id="${it.review_id}" data-decision="agree">Agree</button>
+          <button class="tool-btn resolve-btn" data-id="${it.review_id}" data-decision="disagree">Disagree</button>
+        </td>
+      </tr>`;
+    })
+    .join("");
+  els.reviewTbody.querySelectorAll(".resolve-btn").forEach((btn) => {
+    btn.addEventListener("click", () => resolveReview(btn.dataset.id, btn.dataset.decision));
+  });
+}
+
+async function resolveReview(reviewId, decision) {
+  try {
+    const res = await apiFetch(`/review/${reviewId}/resolve`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ decision, notes: "" }),
+    });
+    if (!res.ok) throw new Error();
+    showToast("Review resolved");
+    loadReviewQueue();
+  } catch {
+    showToast("Could not resolve review");
+  }
 }
 
 /* ---------- Copy / Report ---------- */
@@ -718,6 +1043,8 @@ els.exportCsvBtn.addEventListener("click", exportCsv);
 els.fbYes.addEventListener("click", () => sendFeedback(true));
 els.fbNo.addEventListener("click", () => sendFeedback(false));
 els.refreshHistory.addEventListener("click", loadHistory);
+els.refreshReview.addEventListener("click", loadReviewQueue);
+els.createCaseBtn?.addEventListener("click", createCase);
 
 document.querySelectorAll("figure[data-zoom]").forEach((fig) =>
   fig.addEventListener("click", () => {
@@ -737,7 +1064,11 @@ els.themeToggle.addEventListener("click", toggleTheme);
 
 initTheme();
 initReveal();
+initUserMenu();
+initDatasetTabs();
 checkStatus();
 loadMetrics();
+loadModelCount();
 loadHistory();
+loadReviewQueue();
 setInterval(checkStatus, 15000);

@@ -37,11 +37,26 @@
       <a href="#how">How it works</a>
       <a href="#features">Features</a>
       <a href="#performance">Performance</a>
+      <a href="#review">Review</a>
       <a href="#history">History</a>
       <a href="#faq">FAQ</a>
     </nav>
 
     <div class="topbar-right">
+      <div class="user-menu" id="userMenu">
+        <button class="user-chip" id="userChip" type="button" aria-haspopup="true" aria-expanded="false">
+          <span class="user-avatar" id="userAvatar">G</span>
+          <span class="user-info">
+            <span class="user-name" id="userName">Guest</span>
+            <span class="user-role" id="userRole">Demo mode</span>
+          </span>
+          <svg class="user-chevron" viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><path fill="currentColor" d="M7 10l5 5 5-5z"/></svg>
+        </button>
+        <div class="user-dropdown" id="userDropdown" hidden>
+          <button type="button" class="dropdown-item" id="openLoginBtn">Sign in</button>
+          <button type="button" class="dropdown-item" id="logoutBtn" hidden>Sign out</button>
+        </div>
+      </div>
       <button class="theme-toggle" id="themeToggle" aria-label="Toggle light/dark theme" title="Toggle theme">🌙</button>
       <div class="status-pill" id="statusPill" data-state="loading">
         <span class="dot"></span>
@@ -59,13 +74,13 @@
       and a Grad-CAM heatmap showing exactly where the model looked.
     </p>
     <div class="hero-cta">
-      <a href="#analyzer" class="btn primary hero-btn">Try the Analyzer</a>
+      <a href="#analyzer" class="btn primary hero-btn">Try the Predictor</a>
       <a href="/docs" class="btn ghost hero-btn" target="_blank" rel="noopener">API Docs</a>
     </div>
     <div class="hero-stats">
       <div><b id="heroAcc">~94%</b><span>Typical accuracy</span></div>
       <div><b>&lt;1s</b><span>Inference time</span></div>
-      <div><b>2</b><span>Classes</span></div>
+      <div><b id="heroModels">1</b><span>Model versions</span></div>
       <div><b>5,856</b><span>Training images</span></div>
     </div>
   </section>
@@ -111,6 +126,17 @@
       </div>
 
       <p class="filename" id="fileName"></p>
+
+      <details class="case-panel" id="casePanel">
+        <summary>Case metadata (optional)</summary>
+        <div class="case-fields">
+          <label>Patient ref <input type="text" id="patientRef" placeholder="De-identified ID (e.g. MRN-hash)" /></label>
+          <label>Study date <input type="date" id="studyDate" /></label>
+          <label>Notes <input type="text" id="caseNotes" placeholder="Clinical notes" /></label>
+          <button type="button" class="tool-btn" id="createCaseBtn">Create case</button>
+          <span class="case-id-chip" id="caseIdChip" hidden></span>
+        </div>
+      </details>
     </section>
 
     <section class="panel result-panel">
@@ -134,7 +160,9 @@
       </div>
 
       <div class="results" id="results" hidden>
+        <div class="triage-banner" id="triageBanner" hidden></div>
         <div class="ood-banner" id="oodBanner" hidden></div>
+        <div class="quality-banner" id="qualityBanner" hidden></div>
         <div class="verdict" id="verdict">
           <div class="verdict-left">
             <div class="verdict-icon" id="verdictIcon"></div>
@@ -289,6 +317,13 @@
       <h2 class="section-title">Model performance</h2>
       <p class="section-lead" id="perfLead">Live metrics from your most recent evaluation run.</p>
     </div>
+    <div class="dataset-tabs" role="tablist" aria-label="Dataset benchmarks">
+      <button class="dataset-tab active" type="button" data-dataset="kaggle" role="tab">Our model · Kaggle</button>
+      <button class="dataset-tab" type="button" data-dataset="nih" role="tab">NIH ChestX-ray14</button>
+      <button class="dataset-tab" type="button" data-dataset="rsna" role="tab">RSNA Pneumonia</button>
+      <button class="dataset-tab" type="button" data-dataset="covid" role="tab">COVID-19 CXR</button>
+    </div>
+    <p class="dataset-note" id="datasetNote"></p>
     <div class="metric-grid" id="metricGrid">
       <div class="metric-card"><div class="metric-val" data-k="accuracy">—</div><div class="metric-lbl">Accuracy</div></div>
       <div class="metric-card"><div class="metric-val" data-k="f1">—</div><div class="metric-lbl">F1 Score</div></div>
@@ -303,6 +338,28 @@
       <span class="tech-badge">FastAPI</span>
       <span class="tech-badge">OpenCV</span>
       <span class="tech-badge">scikit-learn</span>
+    </div>
+  </section>
+
+  <!-- REVIEW QUEUE -->
+  <section class="section" id="review">
+    <div class="section-head">
+      <span class="section-kicker">Clinical workflow</span>
+      <h2 class="section-title">Radiologist review queue</h2>
+      <p class="section-lead">Uncertain, low-quality, or flagged studies awaiting human review.</p>
+    </div>
+    <div class="history-wrap">
+      <div class="history-toolbar">
+        <button class="tool-btn" id="refreshReview">Refresh</button>
+      </div>
+      <div class="batch-table-wrap">
+        <table class="batch-table">
+          <thead><tr><th>Time</th><th>Study</th><th>Prediction</th><th>Triage</th><th>Reason</th><th>Action</th></tr></thead>
+          <tbody id="reviewTbody">
+            <tr><td colspan="6" class="history-empty">No pending reviews.</td></tr>
+          </tbody>
+        </table>
+      </div>
     </div>
   </section>
 
@@ -381,6 +438,22 @@
     <img id="lightboxImg" alt="Enlarged view" />
   </div>
   <div class="toast" id="toast" hidden></div>
+
+  <!-- Login modal -->
+  <div class="modal-overlay" id="loginModal" hidden>
+    <div class="modal" role="dialog" aria-labelledby="loginTitle">
+      <button class="modal-close" id="loginModalClose" type="button" aria-label="Close">&times;</button>
+      <h3 class="modal-title" id="loginTitle">Clinician sign in</h3>
+      <p class="modal-sub" id="loginSub">Sign in to record analyses under your identity (required when JWT auth is enabled).</p>
+      <form id="loginForm" class="login-form">
+        <label>Username <input type="text" id="loginUser" autocomplete="username" placeholder="clinician" required /></label>
+        <label>Password <input type="password" id="loginPass" autocomplete="current-password" placeholder="••••••••" required /></label>
+        <p class="login-error" id="loginError" hidden></p>
+        <button type="submit" class="btn primary full-width">Sign in</button>
+      </form>
+      <p class="modal-foot">Default demo users: <code>clinician</code> / <code>admin</code> (password: <code>changeme</code> when JWT is on)</p>
+    </div>
+  </div>
 
   <script src="/static/app.js"></script>
 </body>

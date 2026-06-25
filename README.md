@@ -115,6 +115,26 @@ Open **[http://127.0.0.1:8000](http://127.0.0.1:8000)** — upload an X-ray, vie
 
 ---
 
+## Hospital workflow (prototype)
+
+PulmoScan includes a **hospital-shaped workflow** for research demos (not certified for clinical use):
+
+| Capability | Description |
+|------------|-------------|
+| **Case management** | De-identified patient refs + study metadata (`POST /cases`) |
+| **Image quality gate** | Blur/exposure checks before trusting results |
+| **Clinical triage** | `routine` · `review` · `reject` on every study |
+| **Review queue** | Flagged studies queue for radiologist agree/disagree |
+| **FHIR export** | `GET /studies/{id}/fhir` → DiagnosticReport bundle |
+| **Async jobs** | `POST /jobs/analyze` → poll `GET /jobs/{id}` |
+| **Model registry** | `GET /models` lists checkpoint versions |
+| **Observability** | `GET /ready`, `GET /metrics/prometheus`, `X-Request-ID` tracing |
+| **JWT auth + RBAC** | Enable with `CXR_JWT_SECRET` (roles: viewer, clinician, admin) |
+
+See **[MODEL_CARD.md](MODEL_CARD.md)** for intended use, limitations, and safety notes.
+
+---
+
 ## Web App
 
 The bundled **PulmoScan** UI includes:

@@ -47,7 +47,7 @@ def test_api_predict(checkpoint, rgb_image, monkeypatch):
 
     from chestxray import api
 
-    api.get_classifier.cache_clear()
+    api.clear_classifier_cache()
     client = fastapi_testclient.TestClient(api.app)
 
     assert client.get("/health").json() == {"status": "ok"}
@@ -60,6 +60,7 @@ def test_api_predict(checkpoint, rgb_image, monkeypatch):
     body = resp.json()
     assert body["label"] in ("NORMAL", "PNEUMONIA")
     assert set(body["probabilities"]) == {"NORMAL", "PNEUMONIA"}
+    assert "quality" in body and "triage" in body
 
 
 def test_api_metrics_missing_returns_404(checkpoint, tmp_path, monkeypatch):
@@ -111,7 +112,7 @@ def test_api_analyze_returns_images(checkpoint, rgb_image, monkeypatch):
 
     from chestxray import api
 
-    api.get_classifier.cache_clear()
+    api.clear_classifier_cache()
     client = fastapi_testclient.TestClient(api.app)
 
     buf = io.BytesIO()
@@ -151,7 +152,7 @@ def test_api_predict_includes_input_check(checkpoint, rgb_image, monkeypatch):
     monkeypatch.setenv("CXR_CHECKPOINT_PATH", checkpoint)
     from chestxray import api
 
-    api.get_classifier.cache_clear()
+    api.clear_classifier_cache()
     client = fastapi_testclient.TestClient(api.app)
     resp = client.post("/predict", files={"file": ("xray.png", _png(rgb_image), "image/png")})
     body = resp.json()
@@ -165,7 +166,7 @@ def test_api_history_and_feedback(checkpoint, rgb_image, tmp_path, monkeypatch):
     monkeypatch.setenv("CXR_OUTPUT_DIR", str(tmp_path / "out"))
     from chestxray import api
 
-    api.get_classifier.cache_clear()
+    api.clear_classifier_cache()
     client = fastapi_testclient.TestClient(api.app)
 
     pred = client.post("/predict", files={"file": ("xray.png", _png(rgb_image), "image/png")})
@@ -189,7 +190,7 @@ def test_api_report_returns_pdf(checkpoint, rgb_image, monkeypatch):
     monkeypatch.setenv("CXR_MC_PASSES", "0")
     from chestxray import api
 
-    api.get_classifier.cache_clear()
+    api.clear_classifier_cache()
     client = fastapi_testclient.TestClient(api.app)
     resp = client.post(
         "/predict/report",
@@ -207,7 +208,7 @@ def test_api_auth_enforced_when_keys_set(checkpoint, rgb_image, monkeypatch):
     monkeypatch.setenv("CXR_API_KEYS", "secret123")
     from chestxray import api
 
-    api.get_classifier.cache_clear()
+    api.clear_classifier_cache()
     client = fastapi_testclient.TestClient(api.app)
 
     no_key = client.post("/predict", files={"file": ("x.png", _png(rgb_image), "image/png")})
@@ -219,3 +220,37 @@ def test_api_auth_enforced_when_keys_set(checkpoint, rgb_image, monkeypatch):
         headers={"X-API-Key": "secret123"},
     )
     assert ok.status_code == 200
+
+
+def test_api_ready_and_hospital_routes(checkpoint, rgb_image, tmp_path, monkeypatch):
+    fastapi_testclient = pytest.importorskip("fastapi.testclient")
+    monkeypatch.setenv("CXR_CHECKPOINT_PATH", checkpoint)
+    monkeypatch.setenv("CXR_OUTPUT_DIR", str(tmp_path / "out"))
+    from chestxray import api
+
+    api.clear_classifier_cache()
+    client = fastapi_testclient.TestClient(api.app)
+
+    ready = client.get("/ready")
+    assert ready.status_code == 200
+    assert ready.json()["status"] == "ready"
+
+    prom = client.get("/metrics/prometheus")
+    assert prom.status_code == 200
+    assert "cxr_requests_total" in prom.text
+
+    case = client.post("/cases", json={"patient_ref": "MRN-001"})
+    assert case.status_code == 200
+    case_id = case.json()["case_id"]
+
+    pred = client.post(
+        "/predict/analyze",
+        files={"file": ("xray.png", _png(rgb_image), "image/png")},
+        data={"case_id": case_id},
+    )
+    assert pred.status_code == 200
+    study_id = pred.json()["id"]
+
+    fhir = client.get(f"/studies/{study_id}/fhir?patient_ref=MRN-001")
+    assert fhir.status_code == 200
+    assert fhir.json()["resourceType"] == "Bundle"

@@ -35,6 +35,7 @@ serve = [
     "uvicorn[standard]>=0.27.0",
     "python-multipart>=0.0.9",
     "pydicom>=2.4.0",
+    "PyJWT>=2.8.0",
 ]
 dicom = ["pydicom>=2.4.0"]
 data = ["kaggle>=1.6.0"]
@@ -48,6 +49,7 @@ dev = [
     "uvicorn[standard]>=0.27.0",
     "python-multipart>=0.0.9",
     "pydicom>=2.4.0",
+    "PyJWT>=2.8.0",
     "pre-commit>=3.6.0",
 ]
 
