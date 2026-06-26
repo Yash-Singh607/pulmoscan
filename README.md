@@ -10,9 +10,21 @@
 [![License](https://img.shields.io/badge/License-Educational-blue)](LICENSE)
 [![CI](https://img.shields.io/badge/CI-GitHub%20Actions-2088FF?logo=githubactions&logoColor=white)](.github/workflows/ci.yml)
 
-[Features](#-features) · [Quick Start](#-quick-start) · [Web App](#-web-app) · [API](#-api-reference) · [Training](#-training) · [Docker](#-docker)
+[Features](#-features) · [Demo](#-demo) · [Quick Start](#-quick-start) · [Web App](#-web-app) · [API](#-api-reference) · [Training](#-training) · [Docker](#-docker)
 
 </div>
+
+---
+
+## Demo
+
+<p align="center">
+  <img src="docs/demo.gif" alt="PulmoScan demo — upload chest X-ray, AI inference, Grad-CAM heatmap, and pneumonia verdict with confidence" width="920" />
+</p>
+
+<p align="center"><sub>Animated walkthrough of the PulmoScan web UI: upload → ResNet-50 inference → Grad-CAM → report.</sub></p>
+
+> **Record your own demo:** after `chestxray serve`, capture the live app (Windows: <kbd>Win</kbd>+<kbd>G</kbd> Game Bar) and replace `docs/demo.gif`, or regenerate the bundled animation with `python scripts/generate_readme_demo.py`.
 
 ---
 
@@ -264,6 +276,8 @@ pulmoscan/
 │   ├── report.py        # PDF report builder
 │   └── web/             # Frontend (HTML/CSS/JS)
 ├── tests/               # Pytest suite
+├── docs/                # README demo GIF + poster
+├── scripts/             # Utility scripts (e.g. generate_readme_demo.py)
 ├── pyproject.toml       # Packaging & tool config
 ├── Dockerfile
 ├── .github/workflows/   # CI
