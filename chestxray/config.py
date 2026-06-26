@@ -47,16 +47,24 @@ class ModelConfig:
 
 @dataclass
 class TrainConfig:
-    epochs: int = 15
+    epochs: int = 20
     lr: float = 1e-3
     weight_decay: float = 1e-4
-    unfreeze_epoch: int = 6
+    unfreeze_epoch: int = 5
     scheduler_step: int = 5
     scheduler_gamma: float = 0.5
     use_class_weights: bool = True
-    # Label smoothing regularises the loss and typically improves generalisation
-    # and probability calibration on this dataset.
     label_smoothing: float = 0.05
+    # Stop if val balanced-accuracy does not improve for this many epochs.
+    early_stop_patience: int = 6
+    # Mixup augmentation during training (improves generalisation).
+    use_mixup: bool = True
+    mixup_alpha: float = 0.2
+    # Average weights over the last few epochs (small accuracy boost).
+    use_swa: bool = True
+    swa_epochs: int = 3
+    # Horizontal-flip TTA when reporting test metrics.
+    eval_tta: bool = True
     seed: int = 42
     checkpoint_dir: str = "checkpoints"
     output_dir: str = "outputs"

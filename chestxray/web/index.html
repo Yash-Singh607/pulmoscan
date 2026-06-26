@@ -351,12 +351,26 @@
       <button class="dataset-tab" type="button" data-dataset="covid" role="tab">COVID-19 CXR</button>
     </div>
     <p class="dataset-note" id="datasetNote"></p>
+    <div class="benchmark-warn" id="benchmarkWarn" hidden>
+      ⚠ These numbers are <strong>published reference benchmarks</strong>, not your trained model.
+      Switch to <button type="button" class="linkish" id="switchKaggleTab">Our model · Kaggle</button> for your live accuracy.
+    </div>
     <div class="metric-grid" id="metricGrid">
       <div class="metric-card"><div class="metric-val" data-k="accuracy">—</div><div class="metric-lbl">Accuracy</div></div>
       <div class="metric-card"><div class="metric-val" data-k="f1">—</div><div class="metric-lbl">F1 Score</div></div>
       <div class="metric-card"><div class="metric-val" data-k="precision">—</div><div class="metric-lbl">Precision</div></div>
       <div class="metric-card"><div class="metric-val" data-k="recall">—</div><div class="metric-lbl">Recall</div></div>
       <div class="metric-card"><div class="metric-val" data-k="auc">—</div><div class="metric-lbl">ROC-AUC</div></div>
+    </div>
+    <div class="error-analysis" id="errorAnalysis" hidden>
+      <h3 class="error-analysis-title">Misclassified test samples</h3>
+      <p class="error-analysis-lead" id="errorAnalysisLead"></p>
+      <div class="error-table-wrap">
+        <table class="error-table" id="errorTable">
+          <thead><tr><th>True</th><th>Predicted</th><th>Confidence</th><th>Path</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
     </div>
     <div class="tech-row">
       <span class="tech-label">Built with</span>

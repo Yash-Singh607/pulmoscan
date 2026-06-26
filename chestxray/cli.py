@@ -65,6 +65,14 @@ def _build_parser() -> argparse.ArgumentParser:
         default=None,
         help="Cap images per split for a quick CPU smoke run (e.g. 300)",
     )
+    p_train.add_argument(
+        "--profile",
+        choices=("default", "high-accuracy"),
+        default="default",
+        help="Training preset: default or high-accuracy (more epochs, mixup, SWA, TTA eval)",
+    )
+    p_train.add_argument("--no-mixup", dest="no_mixup", action="store_true")
+    p_train.add_argument("--no-swa", dest="no_swa", action="store_true")
 
     # predict
     p_pred = sub.add_parser("predict", help="Run inference + Grad-CAM")
@@ -79,6 +87,19 @@ def _build_parser() -> argparse.ArgumentParser:
     p_serve.add_argument("--host", default="0.0.0.0")
     p_serve.add_argument("--port", type=int, default=8000)
     p_serve.add_argument("--checkpoint", default="checkpoints/best_model.pth")
+
+    p_release = sub.add_parser("release", help="Bundle checkpoint + metrics for GitHub Release")
+    p_release.add_argument("--out", default="release_bundle")
+    p_release.add_argument("--checkpoint", default="checkpoints/best_model.pth")
+    p_release.add_argument("--metrics", default="outputs/metrics.json")
+
+    p_export = sub.add_parser("export-feedback", help="Export clinician feedback for fine-tuning")
+    p_export.add_argument("--out", default="data/feedback_export")
+    p_export.add_argument(
+        "--all",
+        action="store_true",
+        help="Include correct predictions, not just corrections",
+    )
 
     return parser
 
@@ -108,6 +129,19 @@ def _cmd_train(args) -> None:
         cfg.train.seed = args.seed
     if args.no_class_weights:
         cfg.train.use_class_weights = False
+    if args.no_mixup:
+        cfg.train.use_mixup = False
+    if args.no_swa:
+        cfg.train.use_swa = False
+    if args.profile == "high-accuracy":
+        cfg.train.epochs = args.epochs or 25
+        cfg.train.unfreeze_epoch = args.unfreeze_epoch or 5
+        cfg.data.image_size = 256
+        cfg.train.use_mixup = not args.no_mixup
+        cfg.train.use_swa = not args.no_swa
+        cfg.train.eval_tta = True
+        cfg.train.early_stop_patience = 8
+        cfg.data.batch_size = args.batch_size or 24
 
     from .engine import train
 
@@ -173,6 +207,14 @@ def main(argv: list[str] | None = None) -> None:
         _cmd_predict(args)
     elif args.command == "serve":
         _cmd_serve(args)
+    elif args.command == "release":
+        from .release import prepare_release_bundle
+
+        prepare_release_bundle(args.out, checkpoint=args.checkpoint, metrics=args.metrics)
+    elif args.command == "export-feedback":
+        from .feedback_export import export_feedback
+
+        export_feedback(args.out, only_incorrect=not args.all, include_correct=args.all)
 
 
 if __name__ == "__main__":

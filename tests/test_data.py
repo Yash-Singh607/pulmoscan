@@ -26,7 +26,13 @@ def test_compute_class_weights_handles_zero():
 
 
 def test_load_data_counts(tiny_dataset):
-    cfg = DataConfig(data_dir=tiny_dataset, batch_size=2, num_workers=0, pin_memory=False)
+    cfg = DataConfig(
+        data_dir=tiny_dataset,
+        batch_size=2,
+        num_workers=0,
+        pin_memory=False,
+        resplit_val=False,
+    )
     bundle = load_data(cfg)
     assert bundle.class_names == ["NORMAL", "PNEUMONIA"]
     assert bundle.class_counts == [3, 5]

@@ -1,0 +1,27 @@
+services:
+  pulmoscan:
+    build: .
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./checkpoints:/app/checkpoints:ro
+      - ./outputs:/app/outputs
+      - pulmoscan-data:/app/data
+    environment:
+      CXR_CHECKPOINT_PATH: /app/checkpoints/best_model.pth
+      CXR_OUTPUT_DIR: /app/outputs
+      CXR_DATA_DIR: /app/data/chest_xray
+      CXR_STORE: sqlite
+      CXR_SQLITE_PATH: /app/outputs/pulmoscan.db
+      CXR_MC_PASSES: "10"
+      CXR_RATE_LIMIT: "120"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+    restart: unless-stopped
+
+volumes:
+  pulmoscan-data:

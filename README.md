@@ -165,6 +165,7 @@ Interactive docs: **`http://127.0.0.1:8000/docs`**
 | `GET` | `/health` | Health check |
 | `GET` | `/metadata` | Model classes, device, checkpoint path |
 | `GET` | `/metrics` | Latest training metrics (`outputs/metrics.json`) |
+| `GET` | `/metrics/errors` | Misclassified test samples (after training) |
 | `GET` | `/history` | Recent predictions (audit log) |
 | `POST` | `/predict` | Classify image/DICOM (+ OOD check) |
 | `POST` | `/predict/analyze` | Prediction + Grad-CAM + uncertainty |
@@ -198,12 +199,15 @@ Optional auth: set `CXR_API_KEYS` (comma-separated); send `X-API-Key` header.
 - Augmentation: random crop, flip, rotation, affine, color jitter
 
 ```bash
-chestxray train --data-dir data/chest_xray --epochs 15 --batch-size 32
+chestxray train --profile high-accuracy --data-dir data/chest_xray
 ```
+
+After training, metrics include calibration (`temperature`, `optimal_threshold`) and `outputs/error_analysis.json` for misclassified test samples.
 
 | Flag | Default | Description |
 |------|---------|-------------|
-| `--epochs` | `15` | Training epochs |
+| `--profile` | `default` | Use `high-accuracy` for mixup, SWA, 256px, TTA eval |
+| `--epochs` | `20` | Training epochs |
 | `--batch-size` | `32` | Batch size |
 | `--lr` | `1e-3` | Initial learning rate |
 | `--unfreeze-epoch` | `6` | When to unfreeze backbone |
@@ -277,6 +281,8 @@ chestxray setup-data          # Download Kaggle dataset
 chestxray eda                 # Exploratory analysis → outputs/eda/
 chestxray train               # Train model → checkpoints/best_model.pth
 chestxray predict --image x.jpg   # Inference + Grad-CAM overlay
+chestxray export-feedback     # Export corrections for fine-tuning
+chestxray release             # Bundle checkpoint + metrics for GitHub Release
 chestxray serve --port 8000   # Start API + web UI
 ```
 
@@ -295,6 +301,29 @@ docker run --rm -p 8000:8000 \
 
 CPU-only image with healthcheck on port `8000`.
 
+### Docker Compose (SQLite persistence)
+
+```bash
+docker compose up --build
+```
+
+Mounts `checkpoints/`, `outputs/`, and enables durable SQLite storage (`CXR_STORE=sqlite`).
+
+### Deploy (Render)
+
+Use the included [`render.yaml`](render.yaml) blueprint. Upload `best_model.pth` via a release asset or persistent disk before going live.
+
+---
+
+## Release weights
+
+After training, bundle artifacts for GitHub Releases:
+
+```bash
+chestxray release --out release_bundle
+# Upload release_bundle/best_model.pth + metrics.json as release assets
+```
+
 ---
 
 ## Configuration
@@ -306,6 +335,8 @@ Copy `.env.example` → `.env` or export variables:
 | `CXR_DATA_DIR` | Dataset root |
 | `CXR_CHECKPOINT_PATH` | Model loaded by API |
 | `CXR_OUTPUT_DIR` | Metrics, plots, audit logs |
+| `CXR_STORE` | `jsonl` or `sqlite` (durable persistence) |
+| `CXR_SQLITE_PATH` | SQLite database path when `CXR_STORE=sqlite` |
 | `CXR_MC_PASSES` | MC-Dropout passes (`0` = off) |
 | `CXR_API_KEYS` | API keys (empty = auth disabled) |
 | `CXR_RATE_LIMIT` | Requests/min/IP (`0` = off) |

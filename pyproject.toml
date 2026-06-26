@@ -9,7 +9,7 @@ description = "Chest X-Ray pneumonia classifier (ResNet-50) with training, Grad-
 readme = "README.md"
 requires-python = ">=3.9"
 license = { text = "MIT" }
-authors = [{ name = "Your Name" }]
+authors = [{ name = "Yash Singh" }]
 keywords = ["deep-learning", "medical-imaging", "pytorch", "resnet", "grad-cam"]
 classifiers = [
     "Programming Language :: Python :: 3",
@@ -57,7 +57,7 @@ dev = [
 chestxray = "chestxray.cli:main"
 
 [project.urls]
-Homepage = "https://github.com/your-username/chest-xray-classifier"
+Homepage = "https://github.com/Yash-Singh607/pulmoscan"
 
 [tool.setuptools]
 packages = ["chestxray"]

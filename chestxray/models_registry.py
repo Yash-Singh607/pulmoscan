@@ -6,6 +6,7 @@ import os
 from functools import lru_cache
 from pathlib import Path
 
+from .checkpoint import load_checkpoint
 from .inference import Classifier
 
 
@@ -35,10 +36,11 @@ def list_models() -> list[dict]:
         try:
             meta = load_checkpoint(str(path), map_location="cpu")
             entry["class_names"] = meta.get("class_names", [])
-            extra = meta.get("extra") or {}
-            entry["val_acc"] = extra.get("val_acc")
-            entry["val_balanced_acc"] = extra.get("val_balanced_acc")
-            entry["epoch"] = extra.get("epoch")
+            entry["val_acc"] = meta.get("val_acc")
+            entry["val_balanced_acc"] = meta.get("val_balanced_acc")
+            entry["epoch"] = meta.get("epoch")
+            entry["temperature"] = meta.get("temperature")
+            entry["optimal_threshold"] = meta.get("optimal_threshold")
         except Exception:
             entry["class_names"] = []
         models.append(entry)

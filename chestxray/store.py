@@ -1,4 +1,7 @@
-"""Shared JSONL persistence helpers for audit, cases, and review queues."""
+"""Shared persistence helpers for audit, cases, and review queues.
+
+Supports append-only JSONL (default) or SQLite when ``CXR_STORE=sqlite``.
+"""
 
 from __future__ import annotations
 
@@ -17,11 +20,34 @@ def output_dir() -> Path:
     return Path(os.getenv("CXR_OUTPUT_DIR", "outputs"))
 
 
+def sqlite_path() -> Path:
+    return Path(os.getenv("CXR_SQLITE_PATH", str(output_dir() / "pulmoscan.db")))
+
+
+def use_sqlite() -> bool:
+    return os.getenv("CXR_STORE", "jsonl").lower() == "sqlite"
+
+
 def utcnow() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
+def _sqlite_conn():
+    from . import sqlite_store
+
+    conn = sqlite_store.get_connection(sqlite_path())
+    sqlite_store.migrate_jsonl_files(output_dir(), sqlite_path())
+    return conn
+
+
 def append_jsonl(name: str, entry: dict[str, Any]) -> None:
+    if use_sqlite():
+        from . import sqlite_store
+
+        created = entry.get("created_at") or entry.get("ts") or entry.get("resolved_at") or utcnow()
+        sqlite_store.append_stream(_sqlite_conn(), name, entry, created)
+        return
+
     d = output_dir()
     d.mkdir(parents=True, exist_ok=True)
     path = d / name
@@ -32,6 +58,11 @@ def append_jsonl(name: str, entry: dict[str, Any]) -> None:
 
 
 def read_recent_jsonl(name: str, limit: int = 50) -> list[dict[str, Any]]:
+    if use_sqlite():
+        from . import sqlite_store
+
+        return sqlite_store.read_recent_stream(_sqlite_conn(), name, limit)
+
     path = output_dir() / name
     if not path.is_file():
         return []
@@ -53,6 +84,11 @@ def read_recent_jsonl(name: str, limit: int = 50) -> list[dict[str, Any]]:
 
 
 def read_all_jsonl(name: str) -> list[dict[str, Any]]:
+    if use_sqlite():
+        from . import sqlite_store
+
+        return sqlite_store.read_all_stream(_sqlite_conn(), name)
+
     path = output_dir() / name
     if not path.is_file():
         return []

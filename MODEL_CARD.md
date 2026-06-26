@@ -11,7 +11,11 @@
 | **Task** | Binary chest X-ray screening (NORMAL vs PNEUMONIA) |
 | **Architecture** | ResNet-50 (ImageNet) + custom classification head |
 | **Input** | Frontal chest radiograph, 224×224 RGB |
-| **Output** | Class label + calibrated probabilities + Grad-CAM |
+| **Output** | Class label + temperature-scaled probabilities + Grad-CAM |
+
+## Calibration
+
+After training, PulmoScan fits **temperature scaling** on the validation set and tunes a **pneumonia decision threshold** (F1-max on val). Both values are stored in the checkpoint and applied at inference.
 
 ## Intended use
 

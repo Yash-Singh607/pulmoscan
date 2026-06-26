@@ -219,6 +219,14 @@ def metrics() -> dict:
     return json.loads(path.read_text(encoding="utf-8"))
 
 
+@app.get("/metrics/errors")
+def metrics_errors() -> dict:
+    path = Path(os.getenv("CXR_OUTPUT_DIR", "outputs")) / "error_analysis.json"
+    if not path.is_file():
+        raise HTTPException(status_code=404, detail="No error analysis yet. Train the model first.")
+    return json.loads(path.read_text(encoding="utf-8"))
+
+
 @app.post("/auth/login")
 def login(body: LoginRequest) -> dict:
     if not auth_enabled():

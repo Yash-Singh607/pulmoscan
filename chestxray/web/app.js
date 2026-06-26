@@ -367,6 +367,8 @@ function applyDatasetTab(key) {
   });
   const cfg = DATASET_BENCHMARKS[key] || DATASET_BENCHMARKS.kaggle;
   if (els.datasetNote) els.datasetNote.textContent = cfg.note;
+  const warn = $("benchmarkWarn");
+  if (warn) warn.hidden = key === "kaggle";
 
   if (key === "kaggle" && liveMetrics) {
     setMetric("accuracy", liveMetrics.accuracy);
@@ -392,6 +394,7 @@ function initDatasetTabs() {
   document.querySelectorAll(".dataset-tab").forEach((tab) => {
     tab.addEventListener("click", () => applyDatasetTab(tab.dataset.dataset));
   });
+  $("switchKaggleTab")?.addEventListener("click", () => applyDatasetTab("kaggle"));
   applyDatasetTab("kaggle");
 }
 
@@ -492,6 +495,7 @@ async function loadMetrics() {
       }
       const active = document.querySelector(".dataset-tab.active");
       if (active?.dataset.dataset === "kaggle") applyDatasetTab("kaggle");
+      loadErrorAnalysis();
     } else {
       showTargetMetrics();
     }
@@ -515,6 +519,38 @@ function showTargetMetrics() {
     const el = document.querySelector(`.metric-val[data-k="${k}"]`);
     if (el) el.textContent = v;
   });
+  const errBox = $("errorAnalysis");
+  if (errBox) errBox.hidden = true;
+}
+
+async function loadErrorAnalysis() {
+  const box = $("errorAnalysis");
+  const tbody = $("errorTable")?.querySelector("tbody");
+  const lead = $("errorAnalysisLead");
+  if (!box || !tbody) return;
+  try {
+    const res = await fetch("/metrics/errors");
+    if (!res.ok) {
+      box.hidden = true;
+      return;
+    }
+    const data = await res.json();
+    const rows = data.misclassified || [];
+    tbody.innerHTML = "";
+    rows.slice(0, 12).forEach((row) => {
+      const tr = document.createElement("tr");
+      const path = row.path || "";
+      const short = path.split(/[/\\]/).slice(-2).join("/");
+      tr.innerHTML = `<td>${row.true_label}</td><td>${row.predicted_label}</td><td>${(row.confidence * 100).toFixed(1)}%</td><td title="${path}">${short}</td>`;
+      tbody.appendChild(tr);
+    });
+    if (lead) {
+      lead.textContent = `${data.count || rows.length} misclassified on the test set (showing up to 12).`;
+    }
+    box.hidden = rows.length === 0;
+  } catch {
+    box.hidden = true;
+  }
 }
 
 /* ---------- Mode ---------- */

@@ -14,6 +14,7 @@ import numpy as np  # noqa: E402
 import torch  # noqa: E402
 from PIL import Image  # noqa: E402
 
+from .calibration import apply_temperature
 from .checkpoint import load_checkpoint  # noqa: E402
 from .config import ModelConfig  # noqa: E402
 from .data import inference_transform  # noqa: E402
@@ -71,9 +72,19 @@ class Classifier:
         self.model.to(self.device)
         self.model.eval()
 
-        # Image size is fixed by the ImageNet-pretrained backbone.
-        self.transform = inference_transform(224)
-        logger.info("Loaded model from %s (classes=%s)", checkpoint_path, self.class_names)
+        size = int(ckpt.get("image_size", 224))
+        self.temperature = float(ckpt.get("temperature", 1.0))
+        self.threshold = float(ckpt.get("optimal_threshold", 0.5))
+        self.positive_idx = self.class_names.index("PNEUMONIA") if "PNEUMONIA" in self.class_names else 1
+        self.transform = inference_transform(size)
+        logger.info(
+            "Loaded model from %s (classes=%s, size=%d, T=%.3f, threshold=%.3f)",
+            checkpoint_path,
+            self.class_names,
+            size,
+            self.temperature,
+            self.threshold,
+        )
 
     def predict(self, image: "Image.Image | str", tta: bool = False) -> Prediction:
         """Predict a single PIL image or image path.
@@ -85,12 +96,15 @@ class Classifier:
         image_pil = self._to_pil(image)
         tensor = self.transform(image_pil).unsqueeze(0).to(self.device)
         with torch.no_grad():
-            probs = torch.softmax(self.model(tensor), dim=1)[0]
+            logits = self.model(tensor)
             if tta:
                 flipped = torch.flip(tensor, dims=[3])
-                probs = (probs + torch.softmax(self.model(flipped), dim=1)[0]) / 2
-            probs = probs.cpu().numpy()
+                logits = (logits + self.model(flipped)) / 2
+            probs = apply_temperature(logits, self.temperature)[0].cpu().numpy()
         idx = int(np.argmax(probs))
+        if self.threshold is not None and len(self.class_names) == 2:
+            other = 0 if self.positive_idx == 1 else 1
+            idx = self.positive_idx if probs[self.positive_idx] >= self.threshold else other
         return Prediction(
             label=self.class_names[idx],
             confidence=float(probs[idx]),

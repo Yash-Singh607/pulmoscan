@@ -22,25 +22,80 @@ from sklearn.metrics import (  # noqa: E402
     roc_curve,
 )
 
+from torch.utils.data import ConcatDataset, Subset
+from torchvision.datasets import ImageFolder
+
+from .calibration import apply_temperature
 from .utils import get_logger  # noqa: E402
 
 logger = get_logger(__name__)
 
 
 @torch.no_grad()
-def evaluate_model(model, loader, class_names, device, save_dir="outputs") -> dict:
-    """Full evaluation: accuracy, F1, AUC, confusion matrix, ROC curve."""
+def evaluate_model(
+    model,
+    loader,
+    class_names,
+    device,
+    save_dir="outputs",
+    tta: bool = False,
+    *,
+    temperature: float = 1.0,
+    threshold: float | None = None,
+    positive_idx: int | None = None,
+    export_errors: bool = True,
+) -> dict:
+    """Full evaluation: accuracy, F1, AUC, confusion matrix, ROC curve.
+
+    With ``tta=True``, averages predictions with a horizontal flip (small boost).
+    When ``threshold`` is set, binary decisions use the positive-class probability.
+    """
     os.makedirs(save_dir, exist_ok=True)
     model.eval()
 
+    pos_idx = positive_idx if positive_idx is not None else (
+        class_names.index("PNEUMONIA") if "PNEUMONIA" in class_names else 1
+    )
+
     all_preds, all_labels, all_probs = [], [], []
+    error_rows: list[dict] = []
+    sample_idx = 0
+
     for images, labels in loader:
         images = images.to(device)
         outputs = model(images)
-        probs = torch.softmax(outputs, dim=1).cpu().numpy()
-        all_probs.extend(probs[:, 1])  # positive-class probability
-        all_preds.extend(np.argmax(probs, axis=1))
+        if tta:
+            flipped = torch.flip(images, dims=[3])
+            outputs = (outputs + model(flipped)) / 2
+        probs = apply_temperature(outputs, temperature).cpu().numpy()
+        batch_size = probs.shape[0]
+
+        if threshold is not None:
+            other_idx = 0 if pos_idx == 1 else 1
+            batch_preds = np.where(probs[:, pos_idx] >= threshold, pos_idx, other_idx)
+        else:
+            batch_preds = np.argmax(probs, axis=1)
+
+        all_probs.extend(probs[:, pos_idx])
+        all_preds.extend(batch_preds)
         all_labels.extend(labels.numpy())
+
+        if export_errors:
+            for i in range(batch_size):
+                true_l = int(labels[i].item())
+                pred_l = int(batch_preds[i])
+                if pred_l != true_l:
+                    path = _resolve_sample_path(loader.dataset, sample_idx + i)
+                    error_rows.append(
+                        {
+                            "path": path,
+                            "true_label": class_names[true_l],
+                            "predicted_label": class_names[pred_l],
+                            "confidence": float(probs[i, pred_l]),
+                            "prob_pneumonia": float(probs[i, pos_idx]),
+                        }
+                    )
+            sample_idx += batch_size
 
     all_preds = np.array(all_preds)
     all_labels = np.array(all_labels)
@@ -56,8 +111,13 @@ def evaluate_model(model, loader, class_names, device, save_dir="outputs") -> di
             recall_score(all_labels, all_preds, average="weighted", zero_division=0)
         ),
         "auc": float(roc_auc_score(all_labels, all_probs)),
+        "temperature": float(temperature),
     }
+    if threshold is not None:
+        metrics["optimal_threshold"] = float(threshold)
 
+    if tta:
+        logger.info("Test evaluation used horizontal-flip TTA.")
     logger.info("Test Accuracy : %.4f", metrics["accuracy"])
     logger.info("F1 Score      : %.4f", metrics["f1"])
     logger.info("Precision     : %.4f", metrics["precision"])
@@ -81,7 +141,36 @@ def evaluate_model(model, loader, class_names, device, save_dir="outputs") -> di
     with open(os.path.join(save_dir, "metrics.json"), "w", encoding="utf-8") as f:
         json.dump(metrics, f, indent=2)
 
+    if export_errors and error_rows:
+        error_path = os.path.join(save_dir, "error_analysis.json")
+        payload = {
+            "count": len(error_rows),
+            "misclassified": error_rows[:100],
+        }
+        with open(error_path, "w", encoding="utf-8") as f:
+            json.dump(payload, f, indent=2)
+        metrics["error_analysis_path"] = error_path
+        metrics["misclassified_count"] = len(error_rows)
+        with open(os.path.join(save_dir, "metrics.json"), "w", encoding="utf-8") as f:
+            json.dump(metrics, f, indent=2)
+        logger.info("Saved error analysis (%d items) -> %s", len(error_rows), error_path)
+
     return metrics
+
+
+def _resolve_sample_path(dataset, index: int) -> str:
+    """Best-effort path lookup for ImageFolder / Subset / ConcatDataset."""
+    if isinstance(dataset, Subset):
+        return _resolve_sample_path(dataset.dataset, dataset.indices[index])
+    if isinstance(dataset, ConcatDataset):
+        offset = 0
+        for child in dataset.datasets:
+            if index < offset + len(child):
+                return _resolve_sample_path(child, index - offset)
+            offset += len(child)
+    if isinstance(dataset, ImageFolder):
+        return dataset.samples[index][0]
+    return f"index:{index}"
 
 
 def _plot_confusion_matrix(labels, preds, class_names, save_path):

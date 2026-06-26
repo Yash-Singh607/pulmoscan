@@ -38,3 +38,10 @@ jobs:
 
       - name: Run tests
         run: pytest --cov=chestxray --cov-report=term-missing
+
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build Docker image
+        run: docker build -t pulmoscan:ci .

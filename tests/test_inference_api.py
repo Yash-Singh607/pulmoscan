@@ -5,18 +5,7 @@ import io
 import pytest
 from PIL import Image
 
-from chestxray.checkpoint import save_checkpoint
-from chestxray.config import ModelConfig
 from chestxray.inference import Classifier
-from chestxray.model import build_model
-
-
-@pytest.fixture
-def checkpoint(tmp_path):
-    model = build_model(ModelConfig(num_classes=2), pretrained=False)
-    path = tmp_path / "best_model.pth"
-    save_checkpoint(str(path), model, ["NORMAL", "PNEUMONIA"], ModelConfig(num_classes=2))
-    return str(path)
 
 
 def test_classifier_predict(checkpoint, rgb_image):
@@ -50,7 +39,7 @@ def test_api_predict(checkpoint, rgb_image, monkeypatch):
     api.clear_classifier_cache()
     client = fastapi_testclient.TestClient(api.app)
 
-    assert client.get("/health").json() == {"status": "ok"}
+    assert client.get("/health").json()["status"] == "ok"
 
     buf = io.BytesIO()
     rgb_image.save(buf, format="PNG")

@@ -1,0 +1,20 @@
+# Render.com blueprint — https://render.com/docs/blueprint-spec
+services:
+  - type: web
+    name: pulmoscan
+    runtime: docker
+    plan: free
+    healthCheckPath: /health
+    envVars:
+      - key: CXR_CHECKPOINT_PATH
+        value: /app/checkpoints/best_model.pth
+      - key: CXR_OUTPUT_DIR
+        value: /app/outputs
+      - key: CXR_STORE
+        value: sqlite
+      - key: CXR_SQLITE_PATH
+        value: /app/outputs/pulmoscan.db
+      - key: CXR_MC_PASSES
+        value: "10"
+    # Mount a persistent disk for SQLite audit/cases data (paid plans).
+    # Upload best_model.pth via release asset or build step before deploy.

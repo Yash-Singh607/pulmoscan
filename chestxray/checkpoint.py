@@ -41,15 +41,28 @@ def load_checkpoint(path: str, map_location="cpu") -> dict[str, Any]:
     if isinstance(raw, dict) and "state_dict" in raw:
         class_names = raw.get("class_names", list(DEFAULT_CLASS_NAMES))
         model_config = raw.get("model_config", vars(ModelConfig()))
-        return {
+        meta = {
             "state_dict": raw["state_dict"],
             "class_names": class_names,
             "model_config": model_config,
+            "image_size": int(raw.get("image_size", 224)),
+            "val_acc": raw.get("val_acc"),
+            "val_balanced_acc": raw.get("val_balanced_acc"),
+            "epoch": raw.get("epoch"),
+            "temperature": float(raw.get("temperature", 1.0)),
+            "optimal_threshold": float(raw.get("optimal_threshold", 0.5)),
         }
+        return meta
 
     # Legacy: a bare state_dict.
     return {
         "state_dict": raw,
         "class_names": list(DEFAULT_CLASS_NAMES),
         "model_config": vars(ModelConfig()),
+        "image_size": 224,
+        "val_acc": None,
+        "val_balanced_acc": None,
+        "epoch": None,
+        "temperature": 1.0,
+        "optimal_threshold": 0.5,
     }

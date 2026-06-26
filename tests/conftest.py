@@ -6,11 +6,23 @@ import numpy as np
 import pytest
 from PIL import Image
 
+from chestxray.checkpoint import save_checkpoint
+from chestxray.config import ModelConfig
+from chestxray.model import build_model
+
 
 @pytest.fixture
 def rgb_image() -> Image.Image:
     arr = (np.random.rand(256, 256, 3) * 255).astype("uint8")
     return Image.fromarray(arr, mode="RGB")
+
+
+@pytest.fixture
+def checkpoint(tmp_path):
+    model = build_model(ModelConfig(num_classes=2), pretrained=False)
+    path = tmp_path / "best_model.pth"
+    save_checkpoint(str(path), model, ["NORMAL", "PNEUMONIA"], ModelConfig(num_classes=2))
+    return str(path)
 
 
 @pytest.fixture
