@@ -19,12 +19,27 @@
 ## Demo
 
 <p align="center">
-  <img src="docs/demo.gif" alt="PulmoScan demo — upload chest X-ray, AI inference, Grad-CAM heatmap, and pneumonia verdict with confidence" width="920" />
+  <img src="docs/demo.gif" alt="PulmoScan — upload a chest X-ray, run ResNet-50 inference, view Grad-CAM heatmap, and export a clinical-style report" width="920" />
 </p>
 
-<p align="center"><sub>Animated walkthrough of the PulmoScan web UI: upload → ResNet-50 inference → Grad-CAM → report.</sub></p>
+<p align="center">
+  <strong>Upload</strong> &nbsp;·&nbsp; <strong>Inference</strong> &nbsp;·&nbsp; <strong>Grad-CAM</strong> &nbsp;·&nbsp; <strong>Report</strong>
+</p>
 
-> **Record your own demo:** after `chestxray serve`, capture the live app (Windows: <kbd>Win</kbd>+<kbd>G</kbd> Game Bar) and replace `docs/demo.gif`, or regenerate the bundled animation with `python scripts/generate_readme_demo.py`.
+<p align="center">
+  <a href="#-quick-start"><img src="https://img.shields.io/badge/Try_it-locally-3b82f6?style=for-the-badge" alt="Try it locally" /></a>
+  &nbsp;
+  <a href="#-web-app"><img src="https://img.shields.io/badge/See-features-web_UI-6366f1?style=for-the-badge" alt="See web UI features" /></a>
+</p>
+
+<details>
+<summary><strong>Update this demo</strong> (screen recording or regenerate)</summary>
+
+1. Run <code>chestxray serve</code> and record the analyzer (<kbd>Win</kbd>+<kbd>G</kbd> on Windows).
+2. Replace <code>docs/demo.gif</code> with your recording (GIF or MP4).
+3. Or regenerate the bundled animation: <code>python scripts/generate_readme_demo.py</code>
+
+</details>
 
 ---
 
@@ -276,7 +291,7 @@ pulmoscan/
 │   ├── report.py        # PDF report builder
 │   └── web/             # Frontend (HTML/CSS/JS)
 ├── tests/               # Pytest suite
-├── docs/                # README demo GIF + poster
+├── docs/                # README demo GIF, poster, and frame assets
 ├── scripts/             # Utility scripts (e.g. generate_readme_demo.py)
 ├── pyproject.toml       # Packaging & tool config
 ├── Dockerfile
