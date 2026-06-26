@@ -382,7 +382,3 @@ Python · PyTorch · TorchVision · OpenCV · FastAPI · Uvicorn · Pydicom · M
 
 ---
 
-## License
-
-This repository is for **educational purposes**.  
-Dataset: [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) © Paul Mooney / Kaggle.
