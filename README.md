@@ -19,25 +19,25 @@
 ## Demo
 
 <p align="center">
-  <img src="docs/demo.gif" alt="PulmoScan — upload a chest X-ray, run ResNet-50 inference, view Grad-CAM heatmap, and export a clinical-style report" width="920" />
+  <img src="docs/demo.gif" alt="PulmoScan web app — hero showcase, analyzer upload, Grad-CAM heatmap, and pneumonia report" width="920" />
 </p>
 
 <p align="center">
-  <strong>Upload</strong> &nbsp;·&nbsp; <strong>Inference</strong> &nbsp;·&nbsp; <strong>Grad-CAM</strong> &nbsp;·&nbsp; <strong>Report</strong>
+  <strong>Hero showcase</strong> &nbsp;·&nbsp; <strong>Image intake</strong> &nbsp;·&nbsp; <strong>Grad-CAM</strong> &nbsp;·&nbsp; <strong>Analysis report</strong>
 </p>
 
 <p align="center">
-  <a href="#-quick-start"><img src="https://img.shields.io/badge/Try_it-locally-3b82f6?style=for-the-badge" alt="Try it locally" /></a>
-  &nbsp;
-  <a href="#-web-app"><img src="https://img.shields.io/badge/See-features-web_UI-6366f1?style=for-the-badge" alt="See web UI features" /></a>
+  <a href="#-quick-start"><strong>Start analysis →</strong></a>
+  &nbsp;&nbsp;|&nbsp;&nbsp;
+  <a href="#-web-app"><strong>Web app features</strong></a>
 </p>
 
 <details>
 <summary><strong>Update this demo</strong> (screen recording or regenerate)</summary>
 
-1. Run <code>chestxray serve</code> and record the analyzer (<kbd>Win</kbd>+<kbd>G</kbd> on Windows).
-2. Replace <code>docs/demo.gif</code> with your recording (GIF or MP4).
-3. Or regenerate the bundled animation: <code>python scripts/generate_readme_demo.py</code>
+1. Run <code>chestxray serve</code> and record the live UI (<kbd>Win</kbd>+<kbd>G</kbd> on Windows).
+2. Replace <code>docs/demo.gif</code> with your recording.
+3. Or regenerate to match the bundled UI: <code>python scripts/generate_readme_demo.py</code>
 
 </details>
 
