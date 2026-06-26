@@ -1,0 +1,59 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300" role="img" aria-label="PulmoScan workflow preview">
+  <defs>
+    <linearGradient id="wf-bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0f172a"/>
+      <stop offset="100%" stop-color="#06080f"/>
+    </linearGradient>
+    <linearGradient id="wf-brand" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#3b82f6"/>
+      <stop offset="100%" stop-color="#8b5cf6"/>
+    </linearGradient>
+  </defs>
+  <rect width="400" height="300" fill="url(#wf-bg)"/>
+  <rect x="16" y="16" width="368" height="268" rx="14" fill="#111827" stroke="rgba(255,255,255,0.08)" stroke-width="1"/>
+
+  <!-- step 1: upload -->
+  <g transform="translate(36, 48)">
+    <rect width="88" height="108" rx="10" fill="#0c1222" stroke="rgba(255,255,255,0.1)"/>
+    <rect x="14" y="16" width="60" height="52" rx="6" fill="#1e293b" stroke="rgba(59,130,246,0.35)" stroke-dasharray="4 3"/>
+    <path d="M44 30v18M35 39h18" stroke="#60a5fa" stroke-width="2" stroke-linecap="round"/>
+    <rect x="14" y="78" width="60" height="8" rx="4" fill="#334155"/>
+    <text x="44" y="102" text-anchor="middle" fill="#64748b" font-family="Inter,sans-serif" font-size="9" font-weight="600">UPLOAD</text>
+  </g>
+
+  <!-- arrow 1 -->
+  <path d="M132 102h28" stroke="url(#wf-brand)" stroke-width="2" stroke-linecap="round"/>
+  <path d="M152 96l8 6-8 6" fill="none" stroke="#8b5cf6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+
+  <!-- step 2: analyze -->
+  <g transform="translate(168, 48)">
+    <rect width="88" height="108" rx="10" fill="#0c1222" stroke="rgba(255,255,255,0.1)"/>
+    <circle cx="44" cy="42" r="22" fill="none" stroke="url(#wf-brand)" stroke-width="3" stroke-dasharray="40 18"/>
+    <circle cx="44" cy="42" r="8" fill="#3b82f6" opacity="0.85"/>
+    <rect x="18" y="78" width="52" height="8" rx="4" fill="#334155"/>
+    <text x="44" y="102" text-anchor="middle" fill="#64748b" font-family="Inter,sans-serif" font-size="9" font-weight="600">INFER</text>
+  </g>
+
+  <!-- arrow 2 -->
+  <path d="M264 102h28" stroke="url(#wf-brand)" stroke-width="2" stroke-linecap="round"/>
+  <path d="M284 96l8 6-8 6" fill="none" stroke="#8b5cf6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+
+  <!-- step 3: result + heatmap -->
+  <g transform="translate(300, 48)">
+    <rect width="64" height="108" rx="10" fill="#0c1222" stroke="rgba(255,255,255,0.1)"/>
+    <rect x="8" y="14" width="48" height="58" rx="6" fill="#1e293b"/>
+    <ellipse cx="38" cy="40" rx="14" ry="18" fill="#e2e8f0" opacity="0.35"/>
+    <circle cx="42" cy="44" r="10" fill="#ef4444" opacity="0.55"/>
+    <rect x="8" y="78" width="48" height="8" rx="4" fill="#7f1d1d" opacity="0.6"/>
+    <text x="32" y="102" text-anchor="middle" fill="#64748b" font-family="Inter,sans-serif" font-size="9" font-weight="600">REPORT</text>
+  </g>
+
+  <!-- bottom status bar -->
+  <rect x="36" y="188" width="328" height="56" rx="10" fill="#0c1222" stroke="rgba(255,255,255,0.06)"/>
+  <rect x="52" y="204" width="72" height="24" rx="6" fill="rgba(244,63,94,0.2)" stroke="rgba(251,113,133,0.35)"/>
+  <text x="88" y="220" text-anchor="middle" fill="#fda4af" font-family="Inter,sans-serif" font-size="10" font-weight="700">PNEUMONIA</text>
+  <rect x="140" y="210" width="120" height="12" rx="6" fill="#1e293b"/>
+  <rect x="140" y="210" width="96" height="12" rx="6" fill="url(#wf-brand)" opacity="0.85"/>
+  <text x="280" y="220" fill="#94a3b8" font-family="Inter,sans-serif" font-size="10">94% confidence</text>
+  <text x="52" y="248" fill="#475569" font-family="Inter,sans-serif" font-size="9">Review queue &#183; PDF &#183; FHIR export</text>
+</svg>

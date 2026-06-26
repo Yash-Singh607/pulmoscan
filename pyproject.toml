@@ -63,7 +63,7 @@ Homepage = "https://github.com/Yash-Singh607/pulmoscan"
 packages = ["chestxray"]
 
 [tool.setuptools.package-data]
-chestxray = ["web/*.html", "web/*.css", "web/*.js"]
+chestxray = ["web/*.html", "web/*.css", "web/*.js", "web/assets/*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

@@ -1,19 +1,25 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="dark">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>PulmoScan — AI Chest X-Ray Pneumonia Analyzer</title>
+  <meta name="description" content="PulmoScan — explainable AI for chest X-ray pneumonia screening. ResNet-50, Grad-CAM, clinical triage, and audit-ready exports. Research and education only." />
+  <meta name="theme-color" content="#0f172a" />
+  <meta property="og:title" content="PulmoScan — Chest X-Ray AI Platform" />
+  <meta property="og:description" content="Explainable pneumonia detection with Grad-CAM, uncertainty scoring, and hospital-shaped workflow tools." />
+  <meta property="og:type" content="website" />
+  <title>PulmoScan — Chest X-Ray AI Platform</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link
-    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@500;600&display=swap"
-    rel="stylesheet"
-  />
-  <link rel="stylesheet" href="/static/styles.css" />
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🫁</text></svg>" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/static/styles.css?v=4.2" />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop stop-color='%233b82f6'/%3E%3Cstop offset='1' stop-color='%238b5cf6'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='32' height='32' rx='8' fill='url(%23g)'/%3E%3Cpath d='M16 6v7M12 9c0 3.5-2.5 4.5-3.5 7S8 20 10 20s2-1 2-2.5V9M20 9c0 3.5 2.5 4.5 3.5 7S24 20 22 20s-2-1-2-2.5V9' stroke='%23fff' stroke-width='1.6' fill='none' stroke-linecap='round'/%3E%3C/svg%3E" />
 </head>
 <body data-mode="single">
+  <div class="compliance-bar" role="note">
+    <span class="compliance-icon" aria-hidden="true">!</span>
+    <span><strong>Research &amp; education only.</strong> Not FDA/CE cleared. Not for clinical diagnosis — always require qualified physician review.</span>
+  </div>
   <div class="aurora"></div>
   <div class="grid-overlay"></div>
 
@@ -32,7 +38,7 @@
       </div>
     </div>
 
-    <nav class="nav" id="nav">
+    <nav class="nav" id="nav" aria-label="Main">
       <a href="#analyzer">Analyzer</a>
       <a href="#how">How it works</a>
       <a href="#features">Features</a>
@@ -41,6 +47,10 @@
       <a href="#history">History</a>
       <a href="#faq">FAQ</a>
     </nav>
+
+    <button class="nav-toggle" id="navToggle" type="button" aria-label="Open menu" aria-expanded="false">
+      <span></span><span></span><span></span>
+    </button>
 
     <div class="topbar-right">
       <div class="user-menu" id="userMenu">
@@ -57,7 +67,10 @@
           <button type="button" class="dropdown-item" id="logoutBtn" hidden>Sign out</button>
         </div>
       </div>
-      <button class="theme-toggle" id="themeToggle" aria-label="Toggle light/dark theme" title="Toggle theme">🌙</button>
+      <button class="theme-toggle" id="themeToggle" aria-label="Toggle light/dark theme" title="Toggle theme">
+        <svg class="theme-icon theme-icon-moon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+        <svg class="theme-icon theme-icon-sun" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" hidden><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
+      </button>
       <div class="status-pill" id="statusPill" data-state="loading">
         <span class="dot"></span>
         <span id="statusText">Checking model…</span>
@@ -65,31 +78,79 @@
     </div>
   </header>
 
+  <nav class="mobile-nav" id="mobileNav" hidden aria-label="Mobile">
+    <a href="#analyzer">Analyzer</a>
+    <a href="#how">How it works</a>
+    <a href="#features">Features</a>
+    <a href="#performance">Performance</a>
+    <a href="#review">Review</a>
+    <a href="#history">History</a>
+    <a href="#faq">FAQ</a>
+  </nav>
+
   <!-- HERO -->
-  <section class="hero">
-    <div class="hero-badge">Transfer Learning · ResNet-50 · Grad-CAM</div>
-    <h1 class="hero-title">Detect pneumonia from chest X-rays<br /><span>with explainable AI</span></h1>
-    <p class="hero-sub">
-      Upload a chest X-ray and get an instant prediction, calibrated confidence,
-      and a Grad-CAM heatmap showing exactly where the model looked.
-    </p>
-    <div class="hero-cta">
-      <a href="#analyzer" class="btn primary hero-btn">Try the Predictor</a>
-      <a href="/docs" class="btn ghost hero-btn" target="_blank" rel="noopener">API Docs</a>
+  <section class="hero hero-split">
+    <div class="hero-copy">
+      <div class="hero-glow" aria-hidden="true"></div>
+      <div class="hero-badge">Clinical AI · ResNet-50 · Grad-CAM · Audit trail</div>
+      <h1 class="hero-title">
+        AI-powered pneumonia screening<br />
+        <span>with full explainability</span>
+      </h1>
+      <p class="hero-sub">
+        Upload a chest X-ray for instant inference, calibrated confidence scores,
+        Grad-CAM heatmaps, and export-ready clinical reports.
+      </p>
+      <div class="hero-cta">
+        <a href="#analyzer" class="btn primary hero-btn">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+          Start analysis
+        </a>
+        <a href="#showcase" class="btn ghost hero-btn">Watch demo</a>
+        <a href="/docs" class="btn ghost hero-btn" target="_blank" rel="noopener">API docs</a>
+      </div>
+      <div class="trust-strip">
+        <div class="trust-chip">Grad-CAM</div>
+        <div class="trust-chip">MC-Dropout uncertainty</div>
+        <div class="trust-chip">DICOM</div>
+        <div class="trust-chip">PDF · JSON · FHIR</div>
+      </div>
+      <div class="hero-stats">
+        <div class="stat-card"><b id="heroAcc">~94%</b><span>Test accuracy</span></div>
+        <div class="stat-card"><b id="heroLatency">&lt;1s</b><span>Median inference</span></div>
+        <div class="stat-card"><b id="heroModels">1</b><span>Model versions</span></div>
+        <div class="stat-card"><b>5,856</b><span>Training images</span></div>
+      </div>
     </div>
-    <div class="hero-stats">
-      <div><b id="heroAcc">~94%</b><span>Typical accuracy</span></div>
-      <div><b>&lt;1s</b><span>Inference time</span></div>
-      <div><b id="heroModels">1</b><span>Model versions</span></div>
-      <div><b>5,856</b><span>Training images</span></div>
+
+    <div class="hero-showcase" aria-label="Product preview">
+      <div class="showcase-frame">
+        <div class="showcase-tabs" role="tablist" aria-label="Preview mode">
+          <button type="button" class="showcase-tab active" data-preview="pneumonia" role="tab">Pneumonia case</button>
+          <button type="button" class="showcase-tab" data-preview="normal" role="tab">Normal case</button>
+        </div>
+        <div class="showcase-viewport">
+          <img class="showcase-xray" id="heroPreviewXray" src="/static/assets/xray-pneumonia.svg" alt="Chest X-ray preview" />
+          <img class="showcase-heat" id="heroPreviewHeat" src="/static/assets/gradcam-heatmap.svg" alt="" aria-hidden="true" />
+          <div class="showcase-verdict pneumonia" id="heroPreviewVerdict">
+            <span class="showcase-verdict-label">PNEUMONIA</span>
+            <span class="showcase-verdict-conf" id="heroPreviewConf">94% confidence</span>
+          </div>
+        </div>
+        <p class="showcase-caption">Grad-CAM highlights regions driving the model decision · Sample illustrative image</p>
+      </div>
     </div>
   </section>
 
   <!-- ANALYZER -->
+  <div class="analyzer-shell">
   <main class="layout" id="analyzer">
     <section class="panel upload-panel">
       <div class="panel-head">
-        <h2 class="panel-title">Upload X-Ray</h2>
+        <div>
+          <span class="panel-kicker">Step 1</span>
+          <h2 class="panel-title">Image intake</h2>
+        </div>
         <div class="mode-toggle" role="tablist" aria-label="Analysis mode">
           <button class="mode-btn active" data-mode="single" role="tab">Single</button>
           <button class="mode-btn" data-mode="batch" role="tab">Batch</button>
@@ -154,7 +215,10 @@
 
     <section class="panel result-panel">
       <div class="panel-head">
-        <h2 class="panel-title">Results</h2>
+        <div>
+          <span class="panel-kicker">Step 2</span>
+          <h2 class="panel-title">Analysis report</h2>
+        </div>
         <div class="result-tools" id="resultTools" hidden>
           <button class="tool-btn primary-tool" id="exportAllBtn" title="PDF + JSON + FHIR">Export all</button>
           <button class="tool-btn" id="copyBtn" title="Copy results as JSON">Copy</button>
@@ -164,14 +228,30 @@
         </div>
       </div>
 
+      <div class="case-strip" id="caseStrip" hidden>
+        <span class="case-strip-label">Active case</span>
+        <span class="case-strip-id" id="caseStripId"></span>
+      </div>
+
       <div class="placeholder" id="placeholder">
-        <div class="placeholder-orb">
-          <svg viewBox="0 0 24 24" width="34" height="34" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">
-            <circle cx="11" cy="11" r="7" />
-            <path d="m21 21-4.3-4.3" />
-          </svg>
+        <div class="placeholder-gallery">
+          <figure class="ph-card">
+            <img src="/static/assets/xray-normal.svg" alt="Example normal chest X-ray" data-fallback="/static/assets/xray-normal.svg" data-demo="NORMAL" />
+            <figcaption>Normal example</figcaption>
+          </figure>
+          <figure class="ph-card">
+            <img src="/static/assets/xray-pneumonia.svg" alt="Example pneumonia chest X-ray" data-fallback="/static/assets/xray-pneumonia.svg" data-demo="PNEUMONIA" />
+            <figcaption>Pneumonia example</figcaption>
+          </figure>
         </div>
-        <p>Upload an X-ray and run analysis to see the prediction, confidence, and a Grad-CAM heatmap.</p>
+        <p>Upload an X-ray or pick a demo sample to see prediction, confidence, and Grad-CAM.</p>
+      </div>
+
+      <div class="skeleton-results" id="skeletonResults" hidden aria-hidden="true">
+        <div class="sk-block sk-verdict"></div>
+        <div class="sk-block sk-probs"></div>
+        <div class="sk-block sk-cam"></div>
+        <p class="skeleton-hint">Running inference &amp; Grad-CAM…</p>
       </div>
 
       <div class="results" id="results" hidden>
@@ -213,36 +293,49 @@
 
         <div class="probs" id="probs"></div>
 
+        <div class="uncertainty-panel" id="uncertaintyPanel" hidden>
+          <div class="uncertainty-head">
+            <h3>Uncertainty (MC-Dropout)</h3>
+            <span class="uncertainty-badge" id="uncertaintyBadge">—</span>
+          </div>
+          <p class="uncertainty-note" id="uncertaintyNote"></p>
+          <div class="uncertainty-bars" id="uncertaintyBars"></div>
+        </div>
+
         <div class="gradcam">
           <div class="gradcam-head">
             <h3>Grad-CAM Explainability</h3>
-            <span>Blend the heatmap over the X-ray, or click a thumbnail to enlarge.</span>
+            <span>Switch views or adjust heatmap blend. Click image to enlarge.</span>
           </div>
-          <div class="cam-stage">
-            <img id="camBase" alt="X-ray" />
-            <img id="camHeat" alt="Heatmap" />
+          <div class="cam-tabs" role="tablist" aria-label="Grad-CAM views">
+            <button type="button" class="cam-tab active" data-cam="overlay" role="tab">Overlay</button>
+            <button type="button" class="cam-tab" data-cam="original" role="tab">Original</button>
+            <button type="button" class="cam-tab" data-cam="heatmap" role="tab">Heatmap</button>
           </div>
-          <div class="control-head tight">
-            <label for="opacity">Heatmap opacity</label>
+          <div class="cam-stage" id="camStage" data-zoom role="button" tabindex="0" aria-label="Enlarge Grad-CAM view">
+            <img id="camBase" alt="X-ray" hidden />
+            <img id="camHeat" alt="Heatmap" hidden />
+            <img id="camDisplay" alt="Grad-CAM view" />
+          </div>
+          <div class="control-head tight" id="opacityControl">
+            <label for="opacity">Heatmap blend</label>
             <span class="control-val" id="opacityVal">45%</span>
           </div>
           <input type="range" id="opacity" min="0" max="100" value="45" />
-          <div class="gradcam-grid">
-            <figure data-zoom><img id="imgOriginal" alt="Original X-ray" /><figcaption>Original</figcaption></figure>
-            <figure data-zoom><img id="imgHeatmap" alt="Grad-CAM heatmap" /><figcaption>Heatmap</figcaption></figure>
-            <figure data-zoom><img id="imgOverlay" alt="Heatmap overlay" /><figcaption>Overlay</figcaption></figure>
-          </div>
+          <img id="imgOriginal" alt="" hidden />
+          <img id="imgHeatmap" alt="" hidden />
+          <img id="imgOverlay" alt="" hidden />
         </div>
 
         <div class="result-meta" id="resultMeta"></div>
 
         <div class="feedback" id="feedback">
-          <span class="feedback-q">Was this prediction correct?</span>
+          <span class="feedback-q">Clinical feedback</span>
           <div class="feedback-actions">
-            <button class="fb-btn yes" id="fbYes" title="Correct">👍 Correct</button>
-            <button class="fb-btn no" id="fbNo" title="Incorrect">👎 Incorrect</button>
+            <button class="fb-btn yes" id="fbYes" title="Correct">Confirm correct</button>
+            <button class="fb-btn no" id="fbNo" title="Incorrect">Report incorrect</button>
           </div>
-          <span class="feedback-thanks" id="feedbackThanks" hidden>Thanks — feedback recorded.</span>
+          <span class="feedback-thanks" id="feedbackThanks" hidden>Feedback recorded — thank you.</span>
         </div>
       </div>
 
@@ -275,6 +368,87 @@
       <div class="error-box" id="errorBox" hidden></div>
     </section>
   </main>
+  </div>
+
+  <!-- SHOWCASE -->
+  <section class="section section-showcase" id="showcase">
+    <div class="section-head">
+      <span class="section-kicker">Live preview</span>
+      <h2 class="section-title">See PulmoScan in action</h2>
+      <p class="section-lead">Compare normal and pneumonia cases with explainable heatmaps — the same workflow clinicians use in the analyzer above.</p>
+    </div>
+
+    <div class="demo-theater" id="demoTheater">
+      <div class="demo-stage">
+        <div class="demo-slide active" data-slide="upload">
+          <img src="/static/assets/xray-pneumonia.svg" alt="" class="demo-slide-bg" data-demo="PNEUMONIA" data-fallback="/static/assets/xray-pneumonia.svg" />
+          <div class="demo-slide-overlay">
+            <span class="demo-step-badge">Step 1</span>
+            <h3>Upload chest X-ray</h3>
+            <p>Drag &amp; drop PNG, JPG, or DICOM — or load a demo case instantly.</p>
+          </div>
+        </div>
+        <div class="demo-slide" data-slide="analyze">
+          <img src="/static/assets/xray-pneumonia.svg" alt="" class="demo-slide-bg" data-demo="PNEUMONIA" data-fallback="/static/assets/xray-pneumonia.svg" />
+          <img src="/static/assets/gradcam-heatmap.svg" alt="" class="demo-slide-heat" aria-hidden="true" />
+          <div class="demo-scan-bar" aria-hidden="true"></div>
+          <div class="demo-slide-overlay">
+            <span class="demo-step-badge">Step 2</span>
+            <h3>AI inference</h3>
+            <p>ResNet-50 runs in under a second with calibrated probabilities.</p>
+          </div>
+        </div>
+        <div class="demo-slide" data-slide="explain">
+          <img src="/static/assets/xray-pneumonia.svg" alt="" class="demo-slide-bg" data-demo="PNEUMONIA" data-fallback="/static/assets/xray-pneumonia.svg" />
+          <img src="/static/assets/gradcam-heatmap.svg" alt="" class="demo-slide-heat visible" aria-hidden="true" />
+          <div class="demo-slide-overlay bottom">
+            <span class="demo-verdict pneumonia">PNEUMONIA · 94%</span>
+            <p>Grad-CAM shows which lung regions drove the decision.</p>
+          </div>
+        </div>
+      </div>
+      <div class="demo-progress" aria-hidden="true">
+        <span class="demo-dot active"></span><span class="demo-dot"></span><span class="demo-dot"></span>
+      </div>
+    </div>
+
+    <div class="gallery-grid">
+      <article class="gallery-card">
+        <div class="gallery-media">
+          <img src="/static/assets/xray-normal.svg" alt="Normal chest X-ray" data-demo="NORMAL" data-fallback="/static/assets/xray-normal.svg" />
+          <span class="gallery-badge normal">NORMAL</span>
+        </div>
+        <div class="gallery-body">
+          <h3>Clear lung fields</h3>
+          <p>Typical pediatric frontal CXR with no focal consolidation.</p>
+          <button type="button" class="tool-btn gallery-load" data-label="NORMAL">Try in analyzer</button>
+        </div>
+      </article>
+      <article class="gallery-card featured">
+        <div class="gallery-media">
+          <img src="/static/assets/xray-pneumonia.svg" alt="Pneumonia chest X-ray with heatmap" data-demo="PNEUMONIA" data-fallback="/static/assets/xray-pneumonia.svg" />
+          <img src="/static/assets/gradcam-heatmap.svg" alt="" class="gallery-heat" aria-hidden="true" />
+          <span class="gallery-badge pneumonia">PNEUMONIA</span>
+        </div>
+        <div class="gallery-body">
+          <h3>Infiltrate + Grad-CAM</h3>
+          <p>Model flags opacity and highlights supporting regions in red.</p>
+          <button type="button" class="tool-btn primary-tool gallery-load" data-label="PNEUMONIA">Try in analyzer</button>
+        </div>
+      </article>
+      <article class="gallery-card">
+        <div class="gallery-media">
+          <img src="/static/assets/workflow-preview.svg" alt="Upload, analyze, and export workflow" loading="lazy" />
+          <span class="gallery-badge workflow">END-TO-END</span>
+        </div>
+        <div class="gallery-body">
+          <h3>Full workflow</h3>
+          <p>Upload → analyze → review queue → export PDF / FHIR report.</p>
+          <a href="#analyzer" class="tool-btn primary-tool">Open analyzer</a>
+        </div>
+      </article>
+    </div>
+  </section>
 
   <!-- HOW IT WORKS -->
   <section class="section" id="how">
@@ -285,16 +459,27 @@
     </div>
     <div class="steps">
       <article class="step-card">
+        <div class="step-media">
+          <img src="/static/assets/xray-normal.svg" alt="Upload chest X-ray" loading="lazy" />
+        </div>
         <div class="step-num">01</div>
         <h3>Upload</h3>
         <p>Drag in a chest X-ray (or a whole batch). Images are resized and normalized to match the model's input.</p>
       </article>
       <article class="step-card">
+        <div class="step-media">
+          <img src="/static/assets/xray-pneumonia.svg" alt="AI analyzing X-ray" loading="lazy" />
+          <span class="step-scan" aria-hidden="true"></span>
+        </div>
         <div class="step-num">02</div>
         <h3>AI inference</h3>
         <p>A fine-tuned ResNet-50 runs a forward pass in milliseconds and outputs calibrated class probabilities.</p>
       </article>
       <article class="step-card">
+        <div class="step-media heat">
+          <img src="/static/assets/xray-pneumonia.svg" alt="Grad-CAM heatmap overlay" loading="lazy" />
+          <img src="/static/assets/gradcam-heatmap.svg" alt="" class="step-heat" aria-hidden="true" />
+        </div>
         <div class="step-num">03</div>
         <h3>Explainable result</h3>
         <p>See the verdict, confidence gauge, and a Grad-CAM heatmap highlighting the regions that drove the decision.</p>
@@ -311,28 +496,34 @@
     </div>
     <div class="feature-grid">
       <article class="feature-card">
-        <div class="feature-ic">🧠</div><h3>Transfer Learning</h3>
+        <div class="feature-ic" aria-hidden="true"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 2 2 7l10 5 10-5-10-5Z"/><path d="m2 17 10 5 10-5M2 12l10 5 10-5"/></svg></div>
+        <h3>Transfer learning</h3>
         <p>ResNet-50 pretrained on ImageNet, fine-tuned in two phases for chest radiographs.</p>
       </article>
       <article class="feature-card">
-        <div class="feature-ic">🔥</div><h3>Grad-CAM Heatmaps</h3>
+        <div class="feature-ic" aria-hidden="true"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 3v18h18"/><path d="m7 14 4-4 4 4 5-6"/></svg></div>
+        <h3>Grad-CAM heatmaps</h3>
         <p>Visual explanations show which lung regions influenced each prediction.</p>
       </article>
       <article class="feature-card">
-        <div class="feature-ic">📦</div><h3>Batch Processing</h3>
-        <p>Analyze many X-rays at once with a sortable table and one-click CSV export.</p>
+        <div class="feature-ic" aria-hidden="true"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg></div>
+        <h3>Batch processing</h3>
+        <p>Analyze many studies at once with triage filters and one-click CSV export.</p>
       </article>
       <article class="feature-card">
-        <div class="feature-ic">🎚️</div><h3>Adjustable Threshold</h3>
-        <p>Tune the decision cutoff live to trade off sensitivity vs specificity.</p>
+        <div class="feature-ic" aria-hidden="true"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M2 10h4M10 8h4M18 12h4"/></svg></div>
+        <h3>Threshold tuning</h3>
+        <p>Adjust the pneumonia cutoff live to balance sensitivity and specificity.</p>
       </article>
       <article class="feature-card">
-        <div class="feature-ic">📊</div><h3>Confidence Scoring</h3>
-        <p>Per-class probabilities with low-confidence advisories for borderline cases.</p>
+        <div class="feature-ic" aria-hidden="true"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 20V10M18 20V4M6 20v-4"/></svg></div>
+        <h3>Uncertainty scoring</h3>
+        <p>MC-Dropout entropy with abstention recommendations for borderline cases.</p>
       </article>
       <article class="feature-card">
-        <div class="feature-ic">📤</div><h3>Exportable Reports</h3>
-        <p>Download structured JSON reports or copy results straight to your clipboard.</p>
+        <div class="feature-ic" aria-hidden="true"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/><path d="M14 2v6h6M12 18v-6M9 15l3 3 3-3"/></svg></div>
+        <h3>Regulatory-ready exports</h3>
+        <p>Download PDF reports, structured JSON, and FHIR DiagnosticReport bundles.</p>
       </article>
     </div>
   </section>
@@ -345,15 +536,23 @@
       <p class="section-lead" id="perfLead">Live metrics from your most recent evaluation run.</p>
     </div>
     <div class="dataset-tabs" role="tablist" aria-label="Dataset benchmarks">
-      <button class="dataset-tab active" type="button" data-dataset="kaggle" role="tab">Our model · Kaggle</button>
-      <button class="dataset-tab" type="button" data-dataset="nih" role="tab">NIH ChestX-ray14</button>
-      <button class="dataset-tab" type="button" data-dataset="rsna" role="tab">RSNA Pneumonia</button>
-      <button class="dataset-tab" type="button" data-dataset="covid" role="tab">COVID-19 CXR</button>
+      <button class="dataset-tab active" type="button" data-dataset="kaggle" role="tab">
+        Our model · Kaggle <span class="tab-badge live">Live</span>
+      </button>
+      <button class="dataset-tab" type="button" data-dataset="nih" role="tab">
+        NIH ChestX-ray14 <span class="tab-badge ref">Reference</span>
+      </button>
+      <button class="dataset-tab" type="button" data-dataset="rsna" role="tab">
+        RSNA Pneumonia <span class="tab-badge ref">Reference</span>
+      </button>
+      <button class="dataset-tab" type="button" data-dataset="covid" role="tab">
+        COVID-19 CXR <span class="tab-badge ref">Reference</span>
+      </button>
     </div>
     <p class="dataset-note" id="datasetNote"></p>
     <div class="benchmark-warn" id="benchmarkWarn" hidden>
-      ⚠ These numbers are <strong>published reference benchmarks</strong>, not your trained model.
-      Switch to <button type="button" class="linkish" id="switchKaggleTab">Our model · Kaggle</button> for your live accuracy.
+      These metrics are <strong>published reference benchmarks</strong>, not your deployed model.
+      View live results on <button type="button" class="linkish" id="switchKaggleTab">Our model · Kaggle</button>.
     </div>
     <div class="metric-grid" id="metricGrid">
       <div class="metric-card"><div class="metric-val" data-k="accuracy">—</div><div class="metric-lbl">Accuracy</div></div>
@@ -457,20 +656,40 @@
   </section>
 
   <footer class="site-footer">
-    <div class="footer-brand">
-      <div class="brand-mark small" aria-hidden="true">
-        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v8"/><path d="M9 6c0 4-3 5-4 8-1 3 0 6 2 6 1.5 0 2-1 2-3v-7"/><path d="M15 6c0 4 3 5 4 8 1 3 0 6-2 6-1.5 0-2-1-2-3v-7"/></svg>
+    <div class="footer-grid">
+      <div class="footer-col">
+        <div class="footer-brand">
+          <div class="brand-mark small" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v8"/><path d="M9 6c0 4-3 5-4 8-1 3 0 6 2 6 1.5 0 2-1 2-3v-7"/><path d="M15 6c0 4 3 5 4 8 1 3 0 6-2 6-1.5 0-2-1-2-3v-7"/></svg>
+          </div>
+          <div>
+            <div class="footer-name">PulmoScan</div>
+            <div class="footer-tagline">Chest X-ray AI platform</div>
+          </div>
+        </div>
+        <p class="footer-about">Explainable pneumonia screening for research, education, and clinical workflow prototyping.</p>
       </div>
-      <span>PulmoScan</span>
+      <div class="footer-col">
+        <h4>Product</h4>
+        <a href="#analyzer">Analyzer</a>
+        <a href="#performance">Performance</a>
+        <a href="#review">Review queue</a>
+        <a href="/docs" target="_blank" rel="noopener">API docs</a>
+      </div>
+      <div class="footer-col">
+        <h4>Resources</h4>
+        <a href="#faq">FAQ</a>
+        <a href="#history">Audit log</a>
+        <a href="https://github.com/Yash-Singh607/pulmoscan" target="_blank" rel="noopener">GitHub</a>
+      </div>
+      <div class="footer-col">
+        <h4>Compliance</h4>
+        <p class="footer-legal">Not a medical device. Not intended for diagnostic use. Do not use as sole basis for treatment decisions.</p>
+      </div>
     </div>
-    <p class="disclaimer">
-      <strong>⚠ Research &amp; education only.</strong>
-      Not a medical device — do not use for clinical diagnosis. Always consult a qualified healthcare professional.
-    </p>
-    <div class="footer-links">
-      <a href="/docs" target="_blank" rel="noopener">API Docs</a>
-      <a href="#analyzer">Analyzer</a>
-      <a href="#features">Features</a>
+    <div class="footer-bottom">
+      <span>© 2025 PulmoScan · Research &amp; education only</span>
+      <span class="footer-version">v3.0</span>
     </div>
   </footer>
 
@@ -479,6 +698,14 @@
     <img id="lightboxImg" alt="Enlarged view" />
   </div>
   <div class="toast" id="toast" hidden></div>
+
+  <div class="modal-overlay" id="errorModal" hidden>
+    <div class="modal error-modal" role="dialog" aria-labelledby="errorModalTitle">
+      <button class="modal-close" id="errorModalClose" type="button" aria-label="Close">&times;</button>
+      <h3 class="modal-title" id="errorModalTitle">Misclassified sample</h3>
+      <div class="error-modal-body" id="errorModalBody"></div>
+    </div>
+  </div>
 
   <!-- Login modal -->
   <div class="modal-overlay" id="loginModal" hidden>
@@ -496,6 +723,6 @@
     </div>
   </div>
 
-  <script src="/static/app.js"></script>
+  <script src="/static/app.js?v=4.2"></script>
 </body>
 </html>

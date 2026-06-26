@@ -15,6 +15,7 @@ const els = {
   clearBtn: $("clearBtn"),
   fileName: $("fileName"),
   placeholder: $("placeholder"),
+  skeletonResults: $("skeletonResults"),
   results: $("results"),
   batchResults: $("batchResults"),
   errorBox: $("errorBox"),
@@ -47,6 +48,8 @@ const els = {
   caseNotes: $("caseNotes"),
   createCaseBtn: $("createCaseBtn"),
   caseIdChip: $("caseIdChip"),
+  caseStrip: $("caseStrip"),
+  caseStripId: $("caseStripId"),
   triageBanner: $("triageBanner"),
   qualityBanner: $("qualityBanner"),
   verdict: $("verdict"),
@@ -61,7 +64,14 @@ const els = {
   opacityVal: $("opacityVal"),
   camBase: $("camBase"),
   camHeat: $("camHeat"),
+  camDisplay: $("camDisplay"),
+  camStage: $("camStage"),
+  opacityControl: $("opacityControl"),
   probs: $("probs"),
+  uncertaintyPanel: $("uncertaintyPanel"),
+  uncertaintyBadge: $("uncertaintyBadge"),
+  uncertaintyNote: $("uncertaintyNote"),
+  uncertaintyBars: $("uncertaintyBars"),
   imgOriginal: $("imgOriginal"),
   imgHeatmap: $("imgHeatmap"),
   imgOverlay: $("imgOverlay"),
@@ -78,6 +88,11 @@ const els = {
   lightboxImg: $("lightboxImg"),
   lightboxClose: $("lightboxClose"),
   toast: $("toast"),
+  navToggle: $("navToggle"),
+  mobileNav: $("mobileNav"),
+  errorModal: $("errorModal"),
+  errorModalClose: $("errorModalClose"),
+  errorModalBody: $("errorModalBody"),
   themeToggle: $("themeToggle"),
   userChip: $("userChip"),
   userDropdown: $("userDropdown"),
@@ -116,6 +131,7 @@ let activeCaseId = null;
 let authEnabled = false;
 let liveMetrics = null;
 let batchFilter = "all";
+let camView = "overlay";
 const BATCH_CONCURRENCY = 4;
 
 const DATASET_BENCHMARKS = {
@@ -136,6 +152,177 @@ const DATASET_BENCHMARKS = {
     metrics: { accuracy: 0.91, f1: 0.90, precision: 0.89, recall: 0.92, auc: 0.94 },
   },
 };
+
+function updateCaseStrip() {
+  if (!els.caseStrip) return;
+  if (activeCaseId) {
+    els.caseStrip.hidden = false;
+    if (els.caseStripId) els.caseStripId.textContent = activeCaseId;
+  } else {
+    els.caseStrip.hidden = true;
+  }
+}
+
+function initMobileNav() {
+  const toggle = els.navToggle;
+  const menu = els.mobileNav;
+  if (!toggle || !menu) return;
+
+  const close = () => {
+    menu.hidden = true;
+    toggle.setAttribute("aria-expanded", "false");
+  };
+
+  toggle.addEventListener("click", () => {
+    const open = menu.hidden;
+    menu.hidden = !open;
+    toggle.setAttribute("aria-expanded", String(open));
+  });
+
+  menu.querySelectorAll("a").forEach((link) => {
+    link.addEventListener("click", close);
+  });
+
+  document.addEventListener("click", (e) => {
+    if (!menu.hidden && !menu.contains(e.target) && !toggle.contains(e.target)) close();
+  });
+}
+
+function initNavSpy() {
+  const navLinks = document.querySelectorAll(".nav a, .mobile-nav a");
+  const sections = [...navLinks]
+    .map((link) => {
+      const id = link.getAttribute("href")?.slice(1);
+      return id ? document.getElementById(id) : null;
+    })
+    .filter(Boolean);
+  if (!sections.length || !("IntersectionObserver" in window)) return;
+
+  const byId = new Map(
+    [...navLinks].map((link) => [link.getAttribute("href")?.slice(1), link])
+  );
+
+  const observer = new IntersectionObserver(
+    (entries) => {
+      entries.forEach((entry) => {
+        if (!entry.isIntersecting) return;
+        navLinks.forEach((link) => link.classList.remove("active"));
+        const link = byId.get(entry.target.id);
+        if (link) link.classList.add("active");
+      });
+    },
+    { rootMargin: "-40% 0px -50% 0px", threshold: 0 }
+  );
+
+  sections.forEach((section) => observer.observe(section));
+}
+
+function showSkeleton() {
+  els.placeholder.hidden = true;
+  els.results.hidden = true;
+  els.batchResults.hidden = true;
+  if (els.skeletonResults) els.skeletonResults.hidden = false;
+}
+
+function hideSkeleton() {
+  if (els.skeletonResults) els.skeletonResults.hidden = true;
+}
+
+function initGradCamTabs() {
+  document.querySelectorAll(".cam-tab").forEach((tab) => {
+    tab.addEventListener("click", () => {
+      camView = tab.dataset.cam || "overlay";
+      document.querySelectorAll(".cam-tab").forEach((t) => t.classList.toggle("active", t === tab));
+      updateCamView();
+    });
+  });
+  els.camStage?.addEventListener("click", () => {
+    if (camView === "overlay" && els.imgOverlay?.src) openLightbox(els.imgOverlay.src);
+    else if (els.camDisplay?.src && !els.camDisplay.hidden) openLightbox(els.camDisplay.src);
+  });
+  els.camStage?.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      els.camStage.click();
+    }
+  });
+}
+
+function updateCamView() {
+  if (!els.camDisplay) return;
+  const isOverlay = camView === "overlay";
+  if (els.opacityControl) els.opacityControl.hidden = !isOverlay;
+  if (els.opacity) els.opacity.hidden = !isOverlay;
+
+  if (isOverlay) {
+    els.camDisplay.hidden = true;
+    if (els.camBase) els.camBase.hidden = false;
+    if (els.camHeat) els.camHeat.hidden = false;
+  } else {
+    els.camDisplay.hidden = false;
+    if (els.camBase) els.camBase.hidden = true;
+    if (els.camHeat) els.camHeat.hidden = true;
+    if (camView === "original" && els.imgOriginal?.src) {
+      els.camDisplay.src = els.imgOriginal.src;
+    } else if (camView === "heatmap" && els.imgHeatmap?.src) {
+      els.camDisplay.src = els.imgHeatmap.src;
+    }
+  }
+}
+
+function renderUncertaintyPanel(uncertainty) {
+  if (!els.uncertaintyPanel || !uncertainty) {
+    if (els.uncertaintyPanel) els.uncertaintyPanel.hidden = true;
+    return;
+  }
+
+  els.uncertaintyPanel.hidden = false;
+  const entropy = uncertainty.entropy ?? 0;
+  const abstain = !!uncertainty.abstain;
+
+  if (els.uncertaintyBadge) {
+    els.uncertaintyBadge.textContent = abstain ? "ABSTAIN" : "CONFIDENT";
+    els.uncertaintyBadge.className = `uncertainty-badge ${abstain ? "danger" : entropy > 0.35 ? "warn" : ""}`;
+  }
+  if (els.uncertaintyNote) {
+    els.uncertaintyNote.textContent = abstain
+      ? "High predictive entropy — recommend radiologist review before acting on this result."
+      : `Predictive entropy ${entropy.toFixed(3)} — lower is more confident.`;
+  }
+
+  if (els.uncertaintyBars && uncertainty.std) {
+    els.uncertaintyBars.innerHTML = Object.entries(uncertainty.std)
+      .map(([name, std]) => {
+        const pct = Math.min(100, std * 200);
+        return `<div class="unc-row"><span class="name">${name}</span><div class="track"><div class="fill" style="width:${pct}%"></div></div><span class="val">±${(std * 100).toFixed(1)}%</span></div>`;
+      })
+      .join("");
+  }
+}
+
+function applyOptimalThreshold(metrics) {
+  if (!els.threshold || !metrics || typeof metrics.optimal_threshold !== "number") return;
+  const pct = Math.round(metrics.optimal_threshold * 100);
+  const clamped = Math.min(95, Math.max(5, pct));
+  els.threshold.value = String(clamped);
+  els.thresholdVal.textContent = `${clamped}%`;
+  localStorage.setItem("pulmo-threshold", String(clamped));
+}
+
+function openErrorModal(row) {
+  if (!els.errorModal || !els.errorModalBody) return;
+  els.errorModalBody.innerHTML = `
+    <div class="row"><span>True label</span><b>${row.true_label}</b></div>
+    <div class="row"><span>Predicted</span><b>${row.predicted_label}</b></div>
+    <div class="row"><span>Confidence</span><b>${(row.confidence * 100).toFixed(1)}%</b></div>
+    <div class="row"><span>Pneumonia prob</span><b>${((row.prob_pneumonia ?? 0) * 100).toFixed(1)}%</b></div>
+    <p class="path">${row.path || "Path unavailable"}</p>`;
+  els.errorModal.hidden = false;
+}
+
+function closeErrorModal() {
+  if (els.errorModal) els.errorModal.hidden = true;
+}
 
 /* fetch wrapper that attaches an optional API key (set via localStorage). */
 function apiFetch(url, options = {}) {
@@ -214,6 +401,7 @@ async function ensureCaseId() {
       els.caseIdChip.hidden = false;
       els.caseIdChip.textContent = `Case: ${activeCaseId}`;
     }
+    updateCaseStrip();
     return activeCaseId;
   } catch {
     return null;
@@ -411,16 +599,122 @@ async function loadModelCount() {
   }
 }
 
+/* ---------- Showcase media ---------- */
+const PREVIEW_META = {
+  normal: {
+    src: "/static/assets/xray-normal.svg",
+    heatHidden: true,
+    label: "NORMAL",
+    conf: "96% confidence",
+    cls: "normal",
+    demo: "NORMAL",
+  },
+  pneumonia: {
+    src: "/static/assets/xray-pneumonia.svg",
+    heatHidden: false,
+    label: "PNEUMONIA",
+    conf: "94% confidence",
+    cls: "pneumonia",
+    demo: "PNEUMONIA",
+  },
+};
+let demoImageCache = {};
+
+async function fetchDemoImageUrl(label) {
+  try {
+    const res = await fetch(`/demo/sample?label=${label}`);
+    if (!res.ok) return null;
+    const blob = await res.blob();
+    return URL.createObjectURL(blob);
+  } catch {
+    return null;
+  }
+}
+
+async function hydrateDemoImages() {
+  const imgs = document.querySelectorAll("img[data-demo]");
+  const labels = [...new Set([...imgs].map((img) => img.dataset.demo).filter(Boolean))];
+  demoImageCache = {};
+  await Promise.all(
+    labels.map(async (label) => {
+      demoImageCache[label] = await fetchDemoImageUrl(label);
+    })
+  );
+  imgs.forEach((img) => {
+    const label = img.dataset.demo;
+    const url = demoImageCache[label];
+    if (url) {
+      img.src = url;
+      img.dataset.live = "true";
+    }
+  });
+  document.dispatchEvent(new CustomEvent("pulmo:demos-ready"));
+}
+
+function initHeroPreview() {
+  const xray = $("heroPreviewXray");
+  const heat = $("heroPreviewHeat");
+  const verdict = $("heroPreviewVerdict");
+  const conf = $("heroPreviewConf");
+  if (!xray || !verdict) return;
+
+  const apply = (mode) => {
+    const meta = PREVIEW_META[mode] || PREVIEW_META.pneumonia;
+    xray.src = demoImageCache[meta.demo] || meta.src;
+    if (heat) heat.classList.toggle("hidden", meta.heatHidden);
+    verdict.className = `showcase-verdict ${meta.cls}`;
+    const labelEl = verdict.querySelector(".showcase-verdict-label");
+    if (labelEl) labelEl.textContent = meta.label;
+    if (conf) conf.textContent = meta.conf;
+    document.querySelectorAll(".showcase-tab").forEach((t) => {
+      t.classList.toggle("active", t.dataset.preview === mode);
+    });
+  };
+
+  document.querySelectorAll(".showcase-tab").forEach((tab) => {
+    tab.addEventListener("click", () => apply(tab.dataset.preview));
+  });
+  apply("pneumonia");
+  document.addEventListener("pulmo:demos-ready", () => apply(
+    document.querySelector(".showcase-tab.active")?.dataset.preview || "pneumonia"
+  ));
+}
+
+function initDemoTheater() {
+  const slides = [...document.querySelectorAll(".demo-slide")];
+  const dots = [...document.querySelectorAll(".demo-dot")];
+  if (!slides.length) return;
+
+  let idx = 0;
+  const show = (i) => {
+    idx = i % slides.length;
+    slides.forEach((s, n) => s.classList.toggle("active", n === idx));
+    dots.forEach((d, n) => d.classList.toggle("active", n === idx));
+  };
+
+  show(0);
+  setInterval(() => show(idx + 1), 4200);
+}
+
+function initGalleryActions() {
+  document.querySelectorAll(".gallery-load").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const label = btn.dataset.label || "PNEUMONIA";
+      loadDemoSample(label);
+      document.getElementById("analyzer")?.scrollIntoView({ behavior: "smooth" });
+    });
+  });
+}
+
 /* ---------- Theme ---------- */
 function initTheme() {
   const saved = localStorage.getItem("pulmo-theme");
   const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
-  setTheme(saved || (prefersDark ? "dark" : "light"));
+  setTheme(saved || (prefersDark ? "dark" : "dark"));
 }
 function setTheme(theme) {
   document.documentElement.dataset.theme = theme;
   localStorage.setItem("pulmo-theme", theme);
-  if (els.themeToggle) els.themeToggle.textContent = theme === "dark" ? "☀️" : "🌙";
 }
 function toggleTheme() {
   const next = document.documentElement.dataset.theme === "dark" ? "light" : "dark";
@@ -493,6 +787,7 @@ async function loadMetrics() {
       if (typeof liveMetrics.accuracy === "number") {
         $("heroAcc").textContent = `${(liveMetrics.accuracy * 100).toFixed(1)}%`;
       }
+      applyOptimalThreshold(liveMetrics);
       const active = document.querySelector(".dataset-tab.active");
       if (active?.dataset.dataset === "kaggle") applyDatasetTab("kaggle");
       loadErrorAnalysis();
@@ -542,6 +837,7 @@ async function loadErrorAnalysis() {
       const path = row.path || "";
       const short = path.split(/[/\\]/).slice(-2).join("/");
       tr.innerHTML = `<td>${row.true_label}</td><td>${row.predicted_label}</td><td>${(row.confidence * 100).toFixed(1)}%</td><td title="${path}">${short}</td>`;
+      tr.addEventListener("click", () => openErrorModal(row));
       tbody.appendChild(tr);
     });
     if (lead) {
@@ -641,6 +937,8 @@ function clearAll() {
   els.triageBanner.hidden = true;
   setTriageChip("routine");
   els.placeholder.hidden = false;
+  hideSkeleton();
+  updateCaseStrip();
   hideError();
 }
 
@@ -654,6 +952,7 @@ async function analyze() {
 async function analyzeSingle() {
   if (!singleFile) return;
   setLoading(true);
+  showSkeleton();
   hideError();
   await ensureCaseId();
   const form = new FormData();
@@ -664,7 +963,9 @@ async function analyzeSingle() {
     const res = await apiFetch("/predict/analyze", { method: "POST", body: form });
     const data = await res.json();
     if (!res.ok) return showError(data.detail || `Request failed (${res.status}).`);
-    renderSingle(data, performance.now() - t0);
+    const elapsed = performance.now() - t0;
+    renderSingle(data, elapsed);
+    showToast(`Analysis complete · ${elapsed.toFixed(0)} ms`, "success");
     loadHistory();
     loadReviewQueue();
   } catch {
@@ -675,6 +976,7 @@ async function analyzeSingle() {
 }
 
 function renderSingle(data, elapsedMs) {
+  hideSkeleton();
   els.placeholder.hidden = true;
   els.batchResults.hidden = true;
   els.results.hidden = false;
@@ -687,7 +989,7 @@ function renderSingle(data, elapsedMs) {
   // OOD input guard banner
   if (data.input_check && data.input_check.is_xray_like === false) {
     els.oodBanner.hidden = false;
-    els.oodBanner.innerHTML = `⚠ ${data.input_check.reason || "Input may not be a chest X-ray."}`;
+    els.oodBanner.innerHTML = `<strong>Notice:</strong> ${data.input_check.reason || "Input may not be a chest X-ray."}`;
   } else {
     els.oodBanner.hidden = true;
   }
@@ -695,7 +997,7 @@ function renderSingle(data, elapsedMs) {
   // Image quality
   if (data.quality && data.quality.warnings && data.quality.warnings.length) {
     els.qualityBanner.hidden = false;
-    els.qualityBanner.innerHTML = `📷 ${data.quality.warnings.join(" ")} (score ${(data.quality.score * 100).toFixed(0)}%)`;
+    els.qualityBanner.innerHTML = `<strong>Image quality:</strong> ${data.quality.warnings.join(" ")} (score ${(data.quality.score * 100).toFixed(0)}%)`;
   } else {
     els.qualityBanner.hidden = true;
   }
@@ -742,8 +1044,9 @@ function renderSingle(data, elapsedMs) {
   els.imgHeatmap.src = data.images.heatmap;
   els.imgOverlay.src = data.images.overlay;
   applyOpacity();
+  updateCamView();
 
-  // meta strip
+  renderUncertaintyPanel(currentUncertainty);
   const device = modelMeta ? modelMeta.device.toUpperCase() : "—";
   let metaHtml = `
     <span class="chip"><b>device</b> ${device}</span>
@@ -757,9 +1060,15 @@ function renderSingle(data, elapsedMs) {
     metaHtml += `<span class="chip"><b>triage</b> ${data.triage.toUpperCase()}</span>`;
   }
   if (data.case_id) {
+    activeCaseId = data.case_id;
+    if (els.caseIdChip) {
+      els.caseIdChip.hidden = false;
+      els.caseIdChip.textContent = `Case: ${activeCaseId}`;
+    }
     metaHtml += `<span class="chip"><b>case</b> ${data.case_id}</span>`;
   }
   els.resultMeta.innerHTML = metaHtml;
+  updateCaseStrip();
 
   applyThreshold(); // sets verdict/gauge/advisory
 }
@@ -787,12 +1096,12 @@ function applyThreshold() {
   const abstain = currentUncertainty && currentUncertainty.abstain;
   if (abstain) {
     els.advisory.hidden = false;
-    els.advisory.textContent = "⚠ Model uncertain — recommend radiologist review";
+    els.advisory.textContent = "Model uncertain — recommend radiologist review";
   } else if (maxProb < LOW_CONF || borderline) {
     els.advisory.hidden = false;
     els.advisory.textContent = borderline
-      ? "⚠ Borderline call — recommend expert review"
-      : "⚠ Low confidence — recommend expert review";
+      ? "Borderline call — recommend expert review"
+      : "Low confidence — recommend expert review";
   } else {
     els.advisory.hidden = true;
   }
@@ -1111,7 +1420,8 @@ async function createCase() {
     activeCaseId = data.case_id;
     els.caseIdChip.hidden = false;
     els.caseIdChip.textContent = `Case: ${activeCaseId}`;
-    showToast("Case created");
+    updateCaseStrip();
+    showToast("Case created", "success");
   } catch (e) {
     showToast("Could not create case");
   }
@@ -1236,8 +1546,11 @@ function hideError() {
   els.errorBox.textContent = "";
 }
 let toastTimer;
-function showToast(msg) {
+function showToast(msg, type = "info") {
   els.toast.textContent = msg;
+  els.toast.className = "toast";
+  if (type === "error") els.toast.classList.add("error");
+  if (type === "success") els.toast.classList.add("success");
   els.toast.hidden = false;
   requestAnimationFrame(() => els.toast.classList.add("show"));
   clearTimeout(toastTimer);
@@ -1306,25 +1619,35 @@ els.refreshHistory.addEventListener("click", loadHistory);
 els.refreshReview.addEventListener("click", loadReviewQueue);
 els.createCaseBtn?.addEventListener("click", createCase);
 
-document.querySelectorAll("figure[data-zoom]").forEach((fig) =>
-  fig.addEventListener("click", () => {
-    const img = fig.querySelector("img");
-    if (img && img.src) openLightbox(img.src);
-  })
-);
-els.lightboxClose.addEventListener("click", closeLightbox);
-els.lightbox.addEventListener("click", (e) => {
-  if (e.target === els.lightbox) closeLightbox();
-});
-document.addEventListener("keydown", (e) => {
-  if (e.key === "Escape" && !els.lightbox.hidden) closeLightbox();
+els.errorModalClose?.addEventListener("click", closeErrorModal);
+els.errorModal?.addEventListener("click", (e) => {
+  if (e.target === els.errorModal) closeErrorModal();
 });
 
 els.themeToggle.addEventListener("click", toggleTheme);
 
 initTheme();
 initReveal();
+initMobileNav();
+initNavSpy();
+initGradCamTabs();
 initUserMenu();
+initHeroPreview();
+initDemoTheater();
+initGalleryActions();
+hydrateDemoImages();
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape") {
+    if (!els.lightbox.hidden) closeLightbox();
+    else if (els.errorModal && !els.errorModal.hidden) closeErrorModal();
+  }
+});
+
+els.lightboxClose.addEventListener("click", closeLightbox);
+els.lightbox.addEventListener("click", (e) => {
+  if (e.target === els.lightbox) closeLightbox();
+});
+
 initProductivitySettings();
 initDatasetTabs();
 checkStatus();

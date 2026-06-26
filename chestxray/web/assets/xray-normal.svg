@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 480" role="img" aria-label="Normal chest X-ray illustration">
+  <defs>
+    <radialGradient id="bg" cx="50%" cy="45%" r="65%">
+      <stop offset="0%" stop-color="#1a2234"/>
+      <stop offset="100%" stop-color="#06080f"/>
+    </radialGradient>
+    <filter id="noise">
+      <feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" stitchTiles="stitch"/>
+      <feColorMatrix type="saturate" values="0"/>
+      <feComponentTransfer>
+        <feFuncA type="table" tableValues="0 0.04"/>
+      </feComponentTransfer>
+    </filter>
+  </defs>
+  <rect width="400" height="480" fill="url(#bg)"/>
+  <rect width="400" height="480" filter="url(#noise)" opacity="0.5"/>
+  <g fill="none" stroke="#cbd5e1" stroke-width="1.2" opacity="0.35">
+    <path d="M80 90 Q200 70 320 90"/><path d="M70 130 Q200 105 330 130"/>
+    <path d="M62 170 Q200 145 338 170"/><path d="M58 210 Q200 185 342 210"/>
+    <path d="M56 250 Q200 225 344 250"/><path d="M58 290 Q200 265 342 290"/>
+    <path d="M62 330 Q200 305 338 330"/>
+  </g>
+  <path d="M198 95 L198 360 M202 95 L202 360" stroke="#64748b" stroke-width="3" opacity="0.5"/>
+  <path d="M118 120 Q95 200 105 290 Q115 350 145 370 Q175 385 195 370 L195 120 Q165 105 118 120 Z" fill="#e2e8f0" opacity="0.88"/>
+  <path d="M282 120 Q305 200 295 290 Q285 350 255 370 Q225 385 205 370 L205 120 Q235 105 282 120 Z" fill="#e2e8f0" opacity="0.88"/>
+  <path d="M95 108 Q200 88 305 108" fill="none" stroke="#94a3b8" stroke-width="4" opacity="0.55" stroke-linecap="round"/>
+  <ellipse cx="215" cy="270" rx="42" ry="58" fill="#94a3b8" opacity="0.35"/>
+  <text x="200" y="450" text-anchor="middle" fill="#64748b" font-family="Inter,sans-serif" font-size="11" letter-spacing="0.08em">NORMAL &#183; FRONTAL CXR</text>
+</svg>

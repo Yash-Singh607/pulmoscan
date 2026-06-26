@@ -188,7 +188,10 @@ def _clinical_response(result, model_id: str | None) -> dict:
 def index():
     index_file = WEB_DIR / "index.html"
     if index_file.is_file():
-        return FileResponse(str(index_file))
+        return FileResponse(
+            str(index_file),
+            headers={"Cache-Control": "no-cache, no-store, must-revalidate"},
+        )
     raise HTTPException(status_code=404, detail="Web UI not found.")
 
 
