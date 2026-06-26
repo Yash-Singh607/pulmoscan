@@ -125,6 +125,19 @@
         </button>
       </div>
 
+      <div class="quick-bar" id="quickBar">
+        <label class="quick-toggle">
+          <input type="checkbox" id="autoAnalyze" checked />
+          Auto-analyze on upload
+        </label>
+        <div class="quick-demo">
+          <span class="quick-label">Demo:</span>
+          <button type="button" class="tool-btn" id="demoNormalBtn">Normal X-ray</button>
+          <button type="button" class="tool-btn" id="demoPneuBtn">Pneumonia X-ray</button>
+        </div>
+        <span class="quick-hint">Shortcut: Ctrl+Enter analyze · Esc clear</span>
+      </div>
+
       <p class="filename" id="fileName"></p>
 
       <details class="case-panel" id="casePanel">
@@ -143,9 +156,11 @@
       <div class="panel-head">
         <h2 class="panel-title">Results</h2>
         <div class="result-tools" id="resultTools" hidden>
+          <button class="tool-btn primary-tool" id="exportAllBtn" title="PDF + JSON + FHIR">Export all</button>
           <button class="tool-btn" id="copyBtn" title="Copy results as JSON">Copy</button>
           <button class="tool-btn" id="downloadBtn" title="Download JSON report">JSON</button>
           <button class="tool-btn" id="pdfBtn" title="Download PDF report">PDF</button>
+          <button class="tool-btn" id="fhirBtn" title="Download FHIR DiagnosticReport">FHIR</button>
         </div>
       </div>
 
@@ -161,6 +176,9 @@
 
       <div class="results" id="results" hidden>
         <div class="triage-banner" id="triageBanner" hidden></div>
+        <div class="triage-chip-wrap">
+          <span class="triage-chip routine" id="triageChip">ROUTINE</span>
+        </div>
         <div class="ood-banner" id="oodBanner" hidden></div>
         <div class="quality-banner" id="qualityBanner" hidden></div>
         <div class="verdict" id="verdict">
@@ -234,14 +252,23 @@
           <div class="batch-progress-bar"><div id="batchProgressFill"></div></div>
           <span id="batchProgressText">0 / 0</span>
         </div>
+        <div class="batch-filters" id="batchFilters" hidden>
+          <span class="filter-label">Show:</span>
+          <button type="button" class="filter-chip active" data-filter="all">All</button>
+          <button type="button" class="filter-chip" data-filter="routine">Routine</button>
+          <button type="button" class="filter-chip" data-filter="review">Review</button>
+          <button type="button" class="filter-chip" data-filter="reject">Reject</button>
+        </div>
         <div class="batch-table-wrap">
           <table class="batch-table">
-            <thead><tr><th>#</th><th>File</th><th>Prediction</th><th>Confidence</th></tr></thead>
+            <thead><tr><th>#</th><th>File</th><th>Triage</th><th>Prediction</th><th>Confidence</th></tr></thead>
             <tbody id="batchTbody"></tbody>
           </table>
         </div>
         <div class="batch-actions">
           <button class="btn ghost" id="exportCsvBtn">Export CSV</button>
+          <button class="btn ghost" id="exportBatchJsonBtn">Export JSON</button>
+          <button class="btn ghost" id="exportFlaggedBtn">Export flagged only</button>
         </div>
       </div>
 

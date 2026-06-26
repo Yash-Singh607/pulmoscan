@@ -245,6 +245,24 @@ def models() -> dict:
     return {"models": list_models(), "default": _default_model_id()}
 
 
+@app.get("/demo/sample")
+def demo_sample(label: str = "PNEUMONIA"):
+    """Return a sample test X-ray for demo mode (requires downloaded dataset)."""
+    data_dir = Path(os.getenv("CXR_DATA_DIR", "data/chest_xray"))
+    sub = "PNEUMONIA" if label.upper().startswith("P") else "NORMAL"
+    folder = data_dir / "test" / sub
+    if not folder.is_dir():
+        raise HTTPException(
+            status_code=404,
+            detail="Demo samples need the dataset. Run: chestxray setup-data",
+        )
+    for pattern in ("*.jpeg", "*.jpg", "*.png"):
+        matches = sorted(folder.glob(pattern))
+        if matches:
+            return FileResponse(str(matches[0]), media_type="image/jpeg")
+    raise HTTPException(status_code=404, detail=f"No sample images in {folder}")
+
+
 @app.get("/history")
 def history(limit: int = 50) -> dict:
     return {"items": audit.recent_audit(min(max(limit, 1), 200))}

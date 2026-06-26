@@ -24,6 +24,15 @@ const els = {
   copyBtn: $("copyBtn"),
   downloadBtn: $("downloadBtn"),
   pdfBtn: $("pdfBtn"),
+  fhirBtn: $("fhirBtn"),
+  exportAllBtn: $("exportAllBtn"),
+  triageChip: $("triageChip"),
+  autoAnalyze: $("autoAnalyze"),
+  demoNormalBtn: $("demoNormalBtn"),
+  demoPneuBtn: $("demoPneuBtn"),
+  batchFilters: $("batchFilters"),
+  exportBatchJsonBtn: $("exportBatchJsonBtn"),
+  exportFlaggedBtn: $("exportFlaggedBtn"),
   oodBanner: $("oodBanner"),
   feedback: $("feedback"),
   fbYes: $("fbYes"),
@@ -106,6 +115,8 @@ let batchRows = [];
 let activeCaseId = null;
 let authEnabled = false;
 let liveMetrics = null;
+let batchFilter = "all";
+const BATCH_CONCURRENCY = 4;
 
 const DATASET_BENCHMARKS = {
   kaggle: { live: true, note: "Metrics from your trained model on the Kaggle Chest X-Ray Pneumonia dataset." },
@@ -134,6 +145,103 @@ function apiFetch(url, options = {}) {
   if (key) headers.set("X-API-Key", key);
   if (token) headers.set("Authorization", `Bearer ${token}`);
   return fetch(url, { ...options, headers });
+}
+
+/* ---------- Productivity settings ---------- */
+function initProductivitySettings() {
+  const savedThreshold = localStorage.getItem("pulmo-threshold");
+  if (savedThreshold && els.threshold) {
+    els.threshold.value = savedThreshold;
+    els.thresholdVal.textContent = `${savedThreshold}%`;
+  }
+  const savedAuto = localStorage.getItem("pulmo-auto-analyze");
+  if (els.autoAnalyze && savedAuto !== null) {
+    els.autoAnalyze.checked = savedAuto === "true";
+  }
+  els.threshold?.addEventListener("input", () => {
+    localStorage.setItem("pulmo-threshold", els.threshold.value);
+    applyThreshold();
+  });
+  els.autoAnalyze?.addEventListener("change", () => {
+    localStorage.setItem("pulmo-auto-analyze", String(els.autoAnalyze.checked));
+  });
+  document.addEventListener("keydown", (e) => {
+    if (e.ctrlKey && e.key === "Enter") {
+      e.preventDefault();
+      if (!els.analyzeBtn.disabled) analyze();
+    }
+    if (e.key === "Escape") clearAll();
+  });
+  document.querySelectorAll(".filter-chip").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      batchFilter = btn.dataset.filter || "all";
+      document.querySelectorAll(".filter-chip").forEach((b) => b.classList.toggle("active", b === btn));
+      applyBatchFilter();
+    });
+  });
+}
+
+function isAutoAnalyze() {
+  return els.autoAnalyze ? els.autoAnalyze.checked : false;
+}
+
+function setTriageChip(triage, reasons) {
+  if (!els.triageChip) return;
+  const t = triage || "routine";
+  els.triageChip.className = `triage-chip ${t}`;
+  els.triageChip.textContent = t.toUpperCase();
+  els.triageChip.title = reasons?.length ? reasons.join("; ") : "No manual review required";
+}
+
+async function ensureCaseId() {
+  if (activeCaseId) return activeCaseId;
+  const patient_ref = els.patientRef?.value?.trim();
+  if (!patient_ref) return null;
+  try {
+    const res = await apiFetch("/cases", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        patient_ref,
+        study_date: els.studyDate?.value || null,
+        notes: els.caseNotes?.value || "",
+      }),
+    });
+    const data = await res.json();
+    if (!res.ok) return null;
+    activeCaseId = data.case_id;
+    if (els.caseIdChip) {
+      els.caseIdChip.hidden = false;
+      els.caseIdChip.textContent = `Case: ${activeCaseId}`;
+    }
+    return activeCaseId;
+  } catch {
+    return null;
+  }
+}
+
+async function loadDemoSample(label) {
+  hideError();
+  try {
+    const res = await fetch(`/demo/sample?label=${label}`);
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      return showError(data.detail || "Demo sample unavailable. Run setup-data first.");
+    }
+    const blob = await res.blob();
+    const file = new File([blob], `demo_${label.toLowerCase()}.jpeg`, { type: blob.type || "image/jpeg" });
+    setMode("single");
+    handleFiles([file], { skipAuto: true });
+    await ensureCaseId();
+    analyzeSingle();
+  } catch {
+    showError("Could not load demo sample.");
+  }
+}
+
+function isValidUpload(f) {
+  if (f.type.startsWith("image/")) return true;
+  return /\.dcm$/i.test(f.name);
 }
 
 /* ---------- Auth / user profile ---------- */
@@ -427,10 +535,10 @@ function setMode(next) {
 }
 
 /* ---------- File handling ---------- */
-function handleFiles(fileList) {
-  const files = Array.from(fileList).filter((f) => f.type.startsWith("image/"));
+function handleFiles(fileList, opts = {}) {
+  const files = Array.from(fileList).filter(isValidUpload);
   if (!files.length) {
-    showError("Please select valid image files (PNG or JPG).");
+    showError("Please select valid image files (PNG, JPG, or DICOM .dcm).");
     return;
   }
   hideError();
@@ -443,6 +551,9 @@ function handleFiles(fileList) {
     els.fileName.textContent = `${singleFile.name} · ${(singleFile.size / 1024).toFixed(0)} KB`;
     els.analyzeBtn.disabled = false;
     els.clearBtn.disabled = false;
+    if (isAutoAnalyze() && !opts.skipAuto) {
+      ensureCaseId().then(() => analyzeSingle());
+    }
   } else {
     batchFiles = files;
     renderBatchStrip();
@@ -452,6 +563,7 @@ function handleFiles(fileList) {
     els.fileName.textContent = `${files.length} file${files.length > 1 ? "s" : ""} selected`;
     els.analyzeBtn.disabled = false;
     els.clearBtn.disabled = false;
+    if (isAutoAnalyze() && !opts.skipAuto) analyzeBatch();
   }
 }
 
@@ -486,10 +598,12 @@ function clearAll() {
   els.fileName.textContent = "";
   els.results.hidden = true;
   els.batchResults.hidden = true;
+  if (els.batchFilters) els.batchFilters.hidden = true;
   els.resultTools.hidden = true;
   els.oodBanner.hidden = true;
   els.qualityBanner.hidden = true;
   els.triageBanner.hidden = true;
+  setTriageChip("routine");
   els.placeholder.hidden = false;
   hideError();
 }
@@ -505,6 +619,7 @@ async function analyzeSingle() {
   if (!singleFile) return;
   setLoading(true);
   hideError();
+  await ensureCaseId();
   const form = new FormData();
   form.append("file", singleFile);
   if (activeCaseId) form.append("case_id", activeCaseId);
@@ -550,6 +665,7 @@ function renderSingle(data, elapsedMs) {
   }
 
   // Clinical triage
+  setTriageChip(data.triage, data.triage_reasons);
   if (data.triage && data.triage !== "routine") {
     els.triageBanner.hidden = false;
     const label = data.triage === "reject" ? "REJECT — do not trust result" : "REVIEW REQUIRED";
@@ -652,25 +768,30 @@ function applyOpacity() {
   els.opacityVal.textContent = `${els.opacity.value}%`;
 }
 
-/* ---------- Batch ---------- */
+/* ---------- Batch (parallel) ---------- */
 async function analyzeBatch() {
   if (!batchFiles.length) return;
   setLoading(true);
   hideError();
+  await ensureCaseId();
   els.placeholder.hidden = true;
   els.results.hidden = true;
   els.resultTools.hidden = true;
   els.batchResults.hidden = false;
+  if (els.batchFilters) els.batchFilters.hidden = false;
   batchRows = [];
+  batchFilter = "all";
+  document.querySelectorAll(".filter-chip").forEach((b) => b.classList.toggle("active", b.dataset.filter === "all"));
 
-  // seed table with pending rows
   els.batchTbody.innerHTML = "";
   batchFiles.forEach((f, i) => {
     const tr = document.createElement("tr");
     tr.id = `brow-${i}`;
+    tr.dataset.triage = "pending";
     tr.innerHTML = `
       <td>${i + 1}</td>
-      <td><div class="file-cell"><img src="${URL.createObjectURL(f)}"/><span>${f.name}</span></div></td>
+      <td><div class="file-cell"><img src="${URL.createObjectURL(f)}" alt=""/><span>${f.name}</span></div></td>
+      <td><span class="badge pending">…</span></td>
       <td><span class="badge pending">pending</span></td>
       <td class="conf-cell"><span class="mini-val">—</span></td>`;
     els.batchTbody.appendChild(tr);
@@ -680,10 +801,14 @@ async function analyzeBatch() {
   els.batchProgress.hidden = false;
   updateProgress(0, total);
 
-  for (let i = 0; i < total; i++) {
+  let nextIndex = 0;
+  let done = 0;
+
+  async function processOne(i) {
     const f = batchFiles[i];
     const form = new FormData();
     form.append("file", f);
+    if (activeCaseId) form.append("case_id", activeCaseId);
     try {
       const res = await apiFetch("/predict", { method: "POST", body: form });
       const data = await res.json();
@@ -696,13 +821,31 @@ async function analyzeBatch() {
     } catch {
       markRowError(i, "request failed");
     }
-    updateProgress(i + 1, total);
+    done += 1;
+    updateProgress(done, total);
     updateSummary();
   }
 
+  async function worker() {
+    while (nextIndex < total) {
+      const i = nextIndex++;
+      await processOne(i);
+    }
+  }
+
+  const workers = Math.min(BATCH_CONCURRENCY, total);
+  await Promise.all(Array.from({ length: workers }, () => worker()));
+
   setLoading(false);
-  showToast(`Analyzed ${batchRows.length}/${total} images`);
+  applyBatchFilter();
+  showToast(`Analyzed ${batchRows.length}/${total} · ${BATCH_CONCURRENCY} parallel`);
   loadHistory();
+  loadReviewQueue();
+}
+
+function triageBadge(triage) {
+  const t = triage || "routine";
+  return `<span class="badge triage-${t}">${t.toUpperCase()}</span>`;
 }
 
 function fillRow(i, data) {
@@ -710,52 +853,119 @@ function fillRow(i, data) {
   if (!tr) return;
   const cls = data.label === "PNEUMONIA" ? "pneumonia" : "normal";
   const pct = (data.confidence * 100).toFixed(1);
+  const triage = data.triage || "routine";
+  tr.dataset.triage = triage;
+  tr.children[2].innerHTML = triageBadge(triage);
   const warn =
     data.input_check && data.input_check.is_xray_like === false
       ? ` <span class="flag-dot warn" title="May not be a chest X-ray"></span>`
       : "";
-  tr.children[2].innerHTML = `<span class="badge ${cls}">${data.label}</span>${warn}`;
-  tr.children[3].innerHTML = `
+  tr.children[3].innerHTML = `<span class="badge ${cls}">${data.label}</span>${warn}`;
+  tr.children[4].innerHTML = `
     <div class="mini-track"><div class="mini-fill" style="width:${pct}%"></div></div>
     <span class="mini-val">${pct}%</span>`;
 }
+
 function markRowError(i, msg) {
   const tr = $(`brow-${i}`);
   if (!tr) return;
-  tr.children[2].innerHTML = `<span class="badge pending">error</span>`;
-  tr.children[3].innerHTML = `<span class="mini-val" title="${msg}">—</span>`;
+  tr.dataset.triage = "error";
+  tr.children[2].innerHTML = `<span class="badge pending">—</span>`;
+  tr.children[3].innerHTML = `<span class="badge pending">error</span>`;
+  tr.children[4].innerHTML = `<span class="mini-val" title="${msg}">—</span>`;
 }
+
+function applyBatchFilter() {
+  document.querySelectorAll("#batchTbody tr").forEach((tr) => {
+    const t = tr.dataset.triage || "routine";
+    const show = batchFilter === "all" || t === batchFilter;
+    tr.classList.toggle("filtered-out", !show);
+  });
+}
+
 function updateProgress(done, total) {
   els.batchProgressFill.style.width = `${(done / total) * 100}%`;
   els.batchProgressText.textContent = `${done} / ${total}`;
   if (done === total) setTimeout(() => (els.batchProgress.hidden = true), 600);
 }
+
 function updateSummary() {
   const normal = batchRows.filter((r) => r.label === "NORMAL").length;
   const pneu = batchRows.filter((r) => r.label === "PNEUMONIA").length;
+  const review = batchRows.filter((r) => r.triage === "review").length;
+  const reject = batchRows.filter((r) => r.triage === "reject").length;
   els.batchSummary.innerHTML = `
     <div class="summary-card"><div class="num">${batchRows.length}</div><div class="lbl">Analyzed</div></div>
     <div class="summary-card normal"><div class="num">${normal}</div><div class="lbl">Normal</div></div>
-    <div class="summary-card pneumonia"><div class="num">${pneu}</div><div class="lbl">Pneumonia</div></div>`;
+    <div class="summary-card pneumonia"><div class="num">${pneu}</div><div class="lbl">Pneumonia</div></div>
+    <div class="summary-card"><div class="num">${review}</div><div class="lbl">Review</div></div>
+    <div class="summary-card"><div class="num">${reject}</div><div class="lbl">Reject</div></div>`;
 }
 
-function exportCsv() {
-  if (!batchRows.length) return showToast("Nothing to export");
-  const header = ["file", "prediction", "confidence", "prob_normal", "prob_pneumonia"];
+function batchExportRows(flaggedOnly = false) {
+  return flaggedOnly
+    ? batchRows.filter((r) => r.triage === "review" || r.triage === "reject")
+    : batchRows;
+}
+
+function exportCsv(flaggedOnly = false) {
+  const rows = batchExportRows(flaggedOnly);
+  if (!rows.length) return showToast(flaggedOnly ? "No flagged studies" : "Nothing to export");
+  const header = ["file", "triage", "prediction", "confidence", "prob_normal", "prob_pneumonia", "study_id"];
   const lines = [header.join(",")];
-  for (const r of batchRows) {
+  for (const r of rows) {
     lines.push(
       [
         `"${r.file}"`,
+        r.triage || "routine",
         r.label,
         r.confidence.toFixed(4),
         (r.probabilities.NORMAL ?? 0).toFixed(4),
         (r.probabilities.PNEUMONIA ?? 0).toFixed(4),
+        r.id || "",
       ].join(",")
     );
   }
-  downloadBlob(lines.join("\n"), "pulmoscan_batch_results.csv", "text/csv");
+  const name = flaggedOnly ? "pulmoscan_flagged.csv" : "pulmoscan_batch_results.csv";
+  downloadBlob(lines.join("\n"), name, "text/csv");
   showToast("CSV exported");
+}
+
+function exportBatchJson(flaggedOnly = false) {
+  const rows = batchExportRows(flaggedOnly);
+  if (!rows.length) return showToast(flaggedOnly ? "No flagged studies" : "Nothing to export");
+  const payload = {
+    app: "PulmoScan",
+    generated_at: new Date().toISOString(),
+    case_id: activeCaseId,
+    threshold: +els.threshold.value / 100,
+    studies: rows,
+    disclaimer: "Research/education only. Not a medical device.",
+  };
+  downloadBlob(JSON.stringify(payload, null, 2), flaggedOnly ? "pulmoscan_flagged.json" : "pulmoscan_batch.json", "application/json");
+  showToast("JSON exported");
+}
+
+async function downloadFhir() {
+  if (!lastSingle?.id) return showToast("Analyze an image first");
+  const ref = encodeURIComponent(els.patientRef?.value?.trim() || "anonymous");
+  try {
+    const res = await apiFetch(`/studies/${lastSingle.id}/fhir?patient_ref=${ref}`);
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || "FHIR export failed");
+    downloadBlob(JSON.stringify(data, null, 2), `pulmoscan_${lastSingle.id}_fhir.json`, "application/json");
+    showToast("FHIR report downloaded");
+  } catch (e) {
+    showError(e.message || "Could not export FHIR");
+  }
+}
+
+async function exportAllReports() {
+  if (!lastSingle || !singleFile) return showToast("Analyze an image first");
+  showToast("Exporting PDF, JSON, FHIR…");
+  downloadReport();
+  await downloadPdf();
+  await downloadFhir();
 }
 
 /* ---------- PDF report ---------- */
@@ -947,11 +1157,17 @@ function downloadReport() {
     app: "PulmoScan",
     generated_at: new Date().toISOString(),
     file: lastSingle.file,
+    study_id: lastSingle.id,
+    case_id: lastSingle.case_id || activeCaseId,
+    triage: lastSingle.triage,
+    triage_reasons: lastSingle.triage_reasons,
+    quality: lastSingle.quality,
     model: { device: modelMeta?.device ?? null, architecture: "ResNet-50" },
     prediction: els.verdictLabel.textContent,
     decision_threshold: lastSingle.threshold,
     confidence: lastSingle.confidence,
     probabilities: lastSingle.probabilities,
+    uncertainty: lastSingle.uncertainty,
     disclaimer: "Research/education only. Not a medical device.",
   };
   downloadBlob(JSON.stringify(report, null, 2), "pulmoscan_report.json", "application/json");
@@ -1034,12 +1250,20 @@ els.dropzone.addEventListener("drop", (e) => handleFiles(e.dataTransfer.files));
 
 els.analyzeBtn.addEventListener("click", analyze);
 els.clearBtn.addEventListener("click", clearAll);
-els.threshold.addEventListener("input", applyThreshold);
 els.opacity.addEventListener("input", applyOpacity);
 els.copyBtn.addEventListener("click", copyResults);
 els.downloadBtn.addEventListener("click", downloadReport);
 els.pdfBtn.addEventListener("click", downloadPdf);
-els.exportCsvBtn.addEventListener("click", exportCsv);
+els.fhirBtn?.addEventListener("click", downloadFhir);
+els.exportAllBtn?.addEventListener("click", exportAllReports);
+els.exportCsvBtn.addEventListener("click", () => exportCsv(false));
+els.exportBatchJsonBtn?.addEventListener("click", () => exportBatchJson(false));
+els.exportFlaggedBtn?.addEventListener("click", () => {
+  exportCsv(true);
+  exportBatchJson(true);
+});
+els.demoNormalBtn?.addEventListener("click", () => loadDemoSample("NORMAL"));
+els.demoPneuBtn?.addEventListener("click", () => loadDemoSample("PNEUMONIA"));
 els.fbYes.addEventListener("click", () => sendFeedback(true));
 els.fbNo.addEventListener("click", () => sendFeedback(false));
 els.refreshHistory.addEventListener("click", loadHistory);
@@ -1065,6 +1289,7 @@ els.themeToggle.addEventListener("click", toggleTheme);
 initTheme();
 initReveal();
 initUserMenu();
+initProductivitySettings();
 initDatasetTabs();
 checkStatus();
 loadMetrics();
